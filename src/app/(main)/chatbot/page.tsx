@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
 import ChatBubble from '@/components/chatbot/ChatBubble'

@@ -71,7 +71,7 @@ export function useChat() {
       const nameMatches = [...assistantContent.matchAll(/레시피명:\s*([^\n]+)/g)]
       const mentionedNames = nameMatches.map((m) => m[1].trim())
 
-      let matched = mentionedNames.length > 0
+      const matched = mentionedNames.length > 0
         ? cards.filter((r) =>
             mentionedNames.some(
               (n) => r.name === n || n.includes(r.name) || r.name.includes(n)
