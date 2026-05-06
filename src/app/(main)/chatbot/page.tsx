@@ -1,0 +1,234 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { useSession } from 'next-auth/react'
+import MobileContainer from '@/components/layout/MobileContainer'
+import ChatBubble from '@/components/chatbot/ChatBubble'
+import { useChat } from '@/hooks/useChat'
+import { useIngredients } from '@/hooks/useIngredients'
+import type { ChatMessage } from '@/types'
+
+export default function ChatbotPage() {
+  const router = useRouter()
+  const { data: session } = useSession()
+  const { chatMessages, sendMessage, isLoading } = useChat()
+  const { data: ingredients = [] } = useIngredients()
+
+  const userName = session?.user?.name ?? '고객'
+  const initialMessage: ChatMessage = {
+    id: 'initial',
+    role: 'assistant',
+    content: `안녕하세요, ${userName}님 😊\n저에게 의뢰를 주시면\n맞춤 레시피를 추천해 드릴게요!`,
+    createdAt: new Date().toISOString(),
+  }
+  const [inputText, setInputText] = useState('')
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
+  const [isIndexing, setIsIndexing] = useState(false)
+  const [indexResult, setIndexResult] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  const toggleIngredient = (name: string) => {
+    setSelectedIngredients((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    )
+  }
+
+  const handleSend = async () => {
+    const text = inputText.trim()
+    if (!text || isLoading) return
+    setInputText('')
+    await sendMessage(text, selectedIngredients)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
+
+  const handleIndexSampleData = async () => {
+    setIsIndexing(true)
+    setIndexResult(null)
+    try {
+      const res = await fetch('/api/pinecone/index', { method: 'POST' })
+      const text = await res.text()
+      try {
+        const data = JSON.parse(text)
+        if (res.ok) {
+          setIndexResult(`✅ ${data.count}개 레시피 인덱싱 완료!`)
+        } else {
+          setIndexResult(`❌ ${data.error}`)
+        }
+      } catch {
+        setIndexResult(`❌ 서버 오류 (${res.status}): ${text.slice(0, 120)}`)
+      }
+    } catch (e) {
+      setIndexResult(`❌ ${e instanceof Error ? e.message : '요청 실패'}`)
+    } finally {
+      setIsIndexing(false)
+    }
+  }
+
+  const allMessages =
+    chatMessages.length === 0 ? [initialMessage] : [initialMessage, ...chatMessages]
+
+  return (
+    <MobileContainer fullHeight>
+      {/* 헤더 */}
+      <header className="flex items-center justify-between px-4 safe-top pt-4 pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
+            aria-label="뒤로가기"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="#374151"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-bold text-gray-800">냉탐이의 탐정사무소</h1>
+          </div>
+        </div>
+
+        {/* 샘플 데이터 인덱싱 버튼 */}
+        <button
+          onClick={handleIndexSampleData}
+          disabled={isIndexing}
+          className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1.5 rounded-lg active:bg-gray-200 disabled:opacity-50 whitespace-nowrap"
+        >
+          {isIndexing ? '인덱싱 중…' : '샘플 인덱싱'}
+        </button>
+      </header>
+
+      {/* 인덱싱 결과 */}
+      {indexResult && (
+        <div className="px-4 py-2 bg-gray-50 text-xs text-center text-gray-600 border-b border-gray-100">
+          {indexResult}
+        </div>
+      )}
+
+      {/* 채팅 메시지 영역 */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 no-scrollbar">
+        {allMessages.map((message) => (
+          <ChatBubble key={message.id} message={message} />
+        ))}
+
+        {isLoading && (
+          <div className="flex justify-start mb-3">
+            <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
+              <div className="flex gap-1.5 items-center">
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* 입력 영역 */}
+      <div className="border-t border-gray-100 px-4 pt-2.5 pb-3 safe-bottom">
+        {/* 재료 선택 칩 — Supabase에 등록된 재료 */}
+        {ingredients.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2">
+            {/* 전체 선택 버튼 */}
+            <button
+              onClick={() => {
+                const allNames = ingredients.map((i) => i.name)
+                const allSelected = allNames.every((n) => selectedIngredients.includes(n))
+                setSelectedIngredients(allSelected ? [] : allNames)
+              }}
+              className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                ingredients.every((i) => selectedIngredients.includes(i.name))
+                  ? 'bg-[#13AF70] text-white border-[#13AF70]'
+                  : 'bg-white text-[#13AF70] border-[#13AF70]'
+              }`}
+            >
+              전체
+            </button>
+            {ingredients.map((ingredient) => {
+              const selected = selectedIngredients.includes(ingredient.name)
+              return (
+                <button
+                  key={ingredient.id}
+                  onClick={() => toggleIngredient(ingredient.name)}
+                  className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    selected ? 'bg-[#13AF70] text-white' : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  <span>{ingredient.emoji}</span>
+                  <span>{ingredient.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* 선택된 재료 요약 */}
+        {selectedIngredients.length > 0 && (
+          <div className="flex items-center gap-1 mb-1.5 text-xs">
+            <span className="text-gray-400">선택:</span>
+            <span className="text-[#13AF70] font-medium truncate flex-1">
+              {selectedIngredients.join(', ')}
+            </span>
+            <button
+              onClick={() => setSelectedIngredients([])}
+              className="text-gray-300 flex-shrink-0"
+            >
+              초기화
+            </button>
+          </div>
+        )}
+
+        {/* 메시지 입력창 */}
+        <div className="flex items-end gap-2 bg-gray-100 rounded-2xl px-4 py-2">
+          <textarea
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              selectedIngredients.length > 0
+                ? '선택된 재료로 레시피를 물어보세요…'
+                : '메시지를 입력하세요…'
+            }
+            rows={1}
+            className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 resize-none outline-none max-h-24"
+            style={{ minHeight: '24px' }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!inputText.trim() || isLoading}
+            className="w-8 h-8 rounded-full bg-[#13AF70] flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-90 transition-transform"
+            aria-label="전송"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 5v14M5 12l7-7 7 7"
+                stroke="white"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </MobileContainer>
+  )
+}
