@@ -68,7 +68,7 @@ export function useChat() {
       const cards = chatRecipes ?? []
 
       // 1) 응답에서 "레시피명: X" 추출
-      const nameMatches = [...assistantContent.matchAll(/레시피명:\s*([^\n]+)/g)]
+      const nameMatches = Array.from(assistantContent.matchAll(/레시피명:\s*([^\n]+)/g))
       const mentionedNames = nameMatches.map((m) => m[1].trim())
 
       const matched = mentionedNames.length > 0

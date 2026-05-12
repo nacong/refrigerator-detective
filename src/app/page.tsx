@@ -143,11 +143,25 @@ export default function MainPage() {
           onClick={() => router.push('/chatbot')}
           className="flex flex-col items-center gap-3 active:scale-[0.98] transition-transform"
         >
-          <div className="relative bg-[#E8F9F1] border border-[#13AF70] rounded-2xl px-5 py-4 max-w-[260px]">
-            <p className="text-sm text-gray-700 text-center font-medium">
-              저를 눌러보세요<br/>맛있는 레시피를 찾아드릴게요!
+          {/* SVG 말풍선 */}
+          <div className="relative w-[260px] flex items-center justify-center" style={{ paddingBottom: 14 }}>
+            <svg
+              viewBox="0 0 260 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full"
+            >
+              <path
+                d="M16 1 H244 a15 15 0 0 1 15 15 v54 a15 15 0 0 1 -15 15 H146 c-2 0 -3 1 -4 3 l-7 11 c-3 4 -8 4 -11 0 l-7 -11 c-1 -2 -2 -3 -4 -3 H16 a15 15 0 0 1 -15 -15 v-54 a15 15 0 0 1 15 -15 z"
+                fill="#E8F9F1"
+                stroke="#13AF70"
+                strokeWidth="1"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <p className="relative text-[13px] font-medium text-gray-700 text-center leading-relaxed px-[22px] py-[14px] pb-[20px]">
+              저를 눌러보세요<br />맛있는 레시피를 찾아드릴게요!
             </p>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#E8F9F1] border-b border-r border-[#13AF70] rotate-45" />
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

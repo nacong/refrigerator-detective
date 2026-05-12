@@ -108,24 +108,25 @@ function AIStep2Content() {
               <button
                 key={ingredient.id || index}
                 onClick={() => handleEdit(index)}
-                className="bg-white border border-gray-200 rounded-2xl p-3 flex flex-col items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
+                className="relative bg-white border border-gray-200 rounded-[14px] pt-[10px] pb-[9px] px-2 flex flex-col items-center gap-1 active:scale-95 transition-transform"
               >
-                <span className="text-2xl">{ingredient.emoji}</span>
-                <p className="text-xs font-medium text-gray-700 truncate w-full text-center">
-                  {ingredient.name}
-                </p>
-                <p className="text-xs text-gray-400 truncate w-full text-center">
-                  {ingredient.quantity}
-                </p>
+                {/* D-day 뱃지 — 좌상단 고정 */}
                 {ingredient.expiryDate ? (
-                  <span className="text-xs bg-[#E8F9F1] text-[#13AF70] px-1.5 py-0.5 rounded-full">
-                    {ingredient.expiryDate}
+                  <span className="absolute top-1.5 left-1.5 text-[9.5px] font-medium px-1.5 py-px rounded-full bg-[#E8F9F1] text-[#13AF70] leading-tight">
+                    {(() => {
+                      const days = Math.ceil((new Date(ingredient.expiryDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000)
+                      return days < 0 ? `D+${Math.abs(days)}` : days === 0 ? 'D-DAY' : `D-${days}`
+                    })()}
                   </span>
                 ) : (
-                  <span className="text-xs bg-orange-50 text-orange-400 px-1.5 py-0.5 rounded-full">
+                  <span className="absolute top-1.5 left-1.5 text-[9.5px] font-medium px-1.5 py-px rounded-full bg-orange-50 text-orange-400 leading-tight whitespace-nowrap">
                     날짜 입력
                   </span>
                 )}
+                <span className="text-[22px] mt-1">{ingredient.emoji}</span>
+                <p className="text-[11px] font-medium text-gray-700 text-center leading-tight">
+                  {ingredient.name}<span className="text-gray-400 font-normal ml-0.5">{ingredient.quantity}</span>
+                </p>
               </button>
             ))}
           </div>
