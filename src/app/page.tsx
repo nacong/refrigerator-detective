@@ -5,16 +5,30 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
 import IngredientChip from '@/components/ui/IngredientChip'
-import RecipeCard from '@/components/ui/RecipeCard'
 import { useIngredients } from '@/hooks/useIngredients'
-import { useRecipes } from '@/hooks/useRecipes'
+import { useCookingHistory, type CookingHistoryItem } from '@/hooks/useCookingHistory'
+import { useAppStore } from '@/store/useAppStore'
 
 // 화면 2: 메인 페이지
 export default function MainPage() {
   const router = useRouter()
   const { data: session } = useSession()
   const { data: ingredients = [], isLoading: loadingIngredients } = useIngredients()
-  const { data: recipes = [], isLoading: loadingRecipes } = useRecipes()
+  const { data: history = [], isLoading: loadingHistory } = useCookingHistory()
+  const setSelectedRecipe = useAppStore((s) => s.setSelectedRecipe)
+
+  const handleHistoryClick = (item: CookingHistoryItem) => {
+    setSelectedRecipe({
+      name: item.recipe_name,
+      cookingMethod: '',
+      cookTimeMinutes: item.cook_time,
+      ingredientsRaw: item.ingredients.join(', '),
+      imageUrl: item.thumbnail_url,
+      sourceUrl: '',
+      steps: [],
+    })
+    router.push('/cooking-process')
+  }
 
   // 첫 로그인 감지 — 식재료가 없으면 AI 인식으로 이동
   useEffect(() => {
@@ -66,10 +80,10 @@ export default function MainPage() {
       </header>
 
       <div className="overflow-y-auto no-scrollbar pb-2">
-        {/* 섹션 1: 구조대 목록 */}
+        {/* 섹션 1: 나의 식재료 */}
         <section className="mb-6">
           <div className="flex items-center justify-between px-4 mb-3">
-            <h2 className="text-base font-bold text-gray-800">구조대 목록</h2>
+            <h2 className="text-base font-bold text-gray-800">나의 식재료</h2>
             <button
               onClick={() => router.push('/rescue-list')}
               className="text-sm text-[#13AF70] font-medium"
@@ -86,7 +100,7 @@ export default function MainPage() {
               </div>
             ) : rescueList.length === 0 ? (
               <button
-                onClick={() => router.push('/ai-recognition/step1')}
+                onClick={() => router.push('/ai-recognition/step2')}
                 className="flex items-center gap-2 py-4 text-sm text-[#13AF70] font-medium"
               >
                 <span>📸</span>
@@ -116,21 +130,54 @@ export default function MainPage() {
             </button>
           </div>
           <div className="flex gap-3 px-4 overflow-x-auto no-scrollbar pb-1">
-            {loadingRecipes ? (
+            {loadingHistory ? (
               <div className="flex gap-3">
-                {[1, 2].map((i) => (
-                  <div key={i} className="w-[140px] h-[150px] bg-gray-100 rounded-2xl animate-pulse flex-shrink-0" />
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="w-[140px] h-[160px] bg-gray-100 rounded-2xl animate-pulse flex-shrink-0" />
                 ))}
               </div>
-            ) : recipes.length === 0 ? (
+            ) : history.length === 0 ? (
               <p className="text-sm text-gray-400 py-4">아직 요리 기록이 없어요</p>
             ) : (
-              recipes.slice(0, 6).map((recipe) => (
-                <RecipeCard
-                  key={recipe.id}
-                  recipe={recipe}
-                  onClick={() => router.push('/cooking-history')}
-                />
+              history.slice(0, 6).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleHistoryClick(item)}
+                  className="flex-shrink-0 w-[140px] bg-white rounded-2xl overflow-hidden border border-gray-100 active:scale-95 transition-transform text-left"
+                >
+                  {/* 이미지 영역 */}
+                  <div className="w-full h-[96px] bg-gradient-to-br from-yellow-100 to-orange-100 flex items-center justify-center overflow-hidden">
+                    {item.thumbnail_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.thumbnail_url}
+                        alt={item.recipe_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-[48px] leading-none">🍳</span>
+                    )}
+                    </div>
+
+                  {/* 텍스트 영역 */}
+                  <div className="px-3 pt-2.5 pb-3">
+                    <p className="text-[13px] font-bold text-gray-800 truncate">{item.recipe_name}</p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      {item.cook_time > 0 && (
+                        <span className="flex items-baseline gap-[3px]">
+                          <span className="text-[15px] font-bold text-gray-900">{item.cook_time}</span>
+                          <span className="text-[11px] text-gray-400">분</span>
+                        </span>
+                      )}
+                      {item.cost_per_serving >= 0 && (
+                        <span className="flex items-baseline gap-[3px]">
+                          <span className="text-[15px] font-bold text-gray-900">{item.cost_per_serving.toLocaleString()}</span>
+                          <span className="text-[11px] text-gray-400">원</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
               ))
             )}
           </div>
@@ -144,7 +191,7 @@ export default function MainPage() {
           className="flex flex-col items-center gap-3 active:scale-[0.98] transition-transform"
         >
           {/* SVG 말풍선 */}
-          <div className="relative w-[260px] flex items-center justify-center" style={{ paddingBottom: 14 }}>
+          <div className="relative w-[210px] flex items-center justify-center" style={{ paddingBottom: 11 }}>
             <svg
               viewBox="0 0 260 100"
               preserveAspectRatio="none"
@@ -159,7 +206,7 @@ export default function MainPage() {
                 strokeLinejoin="round"
               />
             </svg>
-            <p className="relative text-[13px] font-medium text-gray-700 text-center leading-relaxed px-[22px] py-[14px] pb-[20px]">
+            <p className="relative text-[12px] font-medium text-gray-700 text-center leading-relaxed px-[18px] py-[12px] pb-[17px]">
               저를 눌러보세요<br />맛있는 레시피를 찾아드릴게요!
             </p>
           </div>
@@ -167,7 +214,7 @@ export default function MainPage() {
           <img
             src="/images/character.jpg"
             alt="냉탐이"
-            className="w-56 h-56 rounded-full object-cover"
+            className="w-44 h-44 rounded-full object-cover"
           />
         </button>
       </div>
