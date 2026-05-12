@@ -56,7 +56,7 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
   if (isUser) {
     return (
       <div className="flex justify-end mb-3">
-        <div className="max-w-[70%] bg-[#13AF70] text-white rounded-tl-2xl rounded-tr-2xl rounded-bl-[4px] rounded-br-2xl px-4 py-2.5">
+        <div className="max-w-[70%] bg-[#13AF70] text-white rounded-tl-2xl rounded-tr-[4px] rounded-bl-2xl rounded-br-2xl px-4 py-2.5">
           <p className="text-[13.5px] whitespace-pre-wrap leading-relaxed">{message.content}</p>
         </div>
       </div>
