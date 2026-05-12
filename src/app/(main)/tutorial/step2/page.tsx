@@ -1,83 +1,137 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import MobileContainer from '@/components/layout/MobileContainer'
-import ProgressBar from '@/components/ui/ProgressBar'
+import ChatBubble from '@/components/chatbot/ChatBubble'
+import { useChat } from '@/hooks/useChat'
+import { useIngredients } from '@/hooks/useIngredients'
+import { useAppStore } from '@/store/useAppStore'
 
 export default function TutorialStep2Page() {
   const router = useRouter()
+  const { chatMessages, sendMessage, isLoading } = useChat()
+  const { data: ingredients = [] } = useIngredients()
+  const clearChatMessages = useAppStore((s) => s.clearChatMessages)
+
+  const [inputText, setInputText] = useState('')
+  const [sent, setSent] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // 이전 채팅 기록 초기화
+  useEffect(() => {
+    clearChatMessages()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages, isLoading])
+
+  const hasAnswer = chatMessages.some((m) => m.role === 'assistant')
+
+  const handleSend = async () => {
+    const text = inputText.trim()
+    if (!text || isLoading || sent) return
+    setInputText('')
+    setSent(true)
+    const ingredientNames = ingredients.map((i) => i.name)
+    await sendMessage(text, ingredientNames)
+  }
+
+  const initialMessage = {
+    id: 'tutorial-intro',
+    role: 'assistant' as const,
+    content: `이제 저에게 뭐든 물어보세요! 🍳\n등록한 식재료로 만들 수 있는\n레시피를 찾아드릴게요.`,
+    createdAt: new Date().toISOString(),
+  }
+
+  const allMessages = [initialMessage, ...chatMessages]
 
   return (
-    <MobileContainer>
-      <header className="safe-top pt-4 border-b border-gray-100">
-        <div className="flex items-center gap-3 px-4 pb-3">
-          <button
-            onClick={() => router.back()}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
-            aria-label="뒤로가기"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M15 18l-6-6 6-6" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <h1 className="text-sm font-bold text-gray-800">냉장고 탐정 시작하기</h1>
+    <MobileContainer fullHeight>
+      {/* 헤더 — 진행 도트 */}
+      <header className="flex items-center justify-between px-4 safe-top pt-4 pb-3 border-b border-gray-100">
+        <div className="w-9" />
+        <div className="flex gap-1.5">
+          <span className="w-6 h-1.5 bg-gray-200 rounded-full" />
+          <span className="w-6 h-1.5 bg-[#13AF70] rounded-full" />
         </div>
-        <ProgressBar currentStep={2} totalSteps={3} />
+        <div className="w-9" />
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-28 h-28 rounded-full bg-[#E8F9F1] flex items-center justify-center">
-            <span className="text-[56px]">📸</span>
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">AI 식재료 인식</h2>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              냉장고 사진을 찍으면<br />
-              <span className="text-[#13AF70] font-medium">냉탐이</span>가 식재료를 자동으로 인식해요
-            </p>
-          </div>
-        </div>
+      {/* 메시지 목록 */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 no-scrollbar">
+        {allMessages.map((msg) => (
+          <ChatBubble key={msg.id} message={msg} />
+        ))}
 
-        <div className="w-full bg-gray-50 rounded-3xl p-5 space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#13AF70] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
-              1
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-700">사진 촬영</p>
-              <p className="text-xs text-gray-400 mt-0.5">냉장고 안을 카메라로 찍어주세요</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#13AF70] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
-              2
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-700">AI 자동 인식</p>
-              <p className="text-xs text-gray-400 mt-0.5">식재료 이름, 수량을 자동으로 찾아요</p>
+        {/* 로딩 점 */}
+        {isLoading && (
+          <div className="flex items-center gap-2 mt-2 ml-[52px]">
+            <div className="flex gap-1 bg-gray-100 rounded-2xl px-4 py-3">
+              {[0, 150, 300].map((delay) => (
+                <span
+                  key={delay}
+                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: `${delay}ms` }}
+                />
+              ))}
             </div>
           </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#13AF70] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
-              3
+        )}
+
+        {/* 완료 버튼 — 답변 도착 후 */}
+        {hasAnswer && !isLoading && (
+          <div className="mt-6">
+            {/* 냉탐이 마무리 말풍선 */}
+            <div className="flex items-end gap-3 mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/character.jpg" alt="냉탐이" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+              <div className="bg-[#E8F9F1] border border-[#13AF70]/20 rounded-2xl rounded-bl-[4px] px-4 py-3">
+                <p className="text-[13px] text-gray-700 leading-relaxed">
+                  이제 함께 건강한 식생활을<br />
+                  시작해봐요! 언제든 불러주세요 🕵️
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-700">유통기한 입력 후 저장</p>
-              <p className="text-xs text-gray-400 mt-0.5">날짜를 입력하면 구조대가 관리해 드려요</p>
-            </div>
+            <button
+              onClick={() => router.push('/')}
+              className="w-full bg-[#13AF70] text-white font-semibold py-4 rounded-2xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+            >
+              <span>🕵️</span>
+              <span>냉탐이와 건강한 삶 시작하기</span>
+            </button>
           </div>
-        </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
-      <div className="px-4 pb-6 pt-3 safe-bottom">
-        <button
-          onClick={() => router.push('/tutorial/step3')}
-          className="w-full bg-[#13AF70] text-white font-semibold py-4 rounded-2xl active:scale-[0.98] transition-transform"
-        >
-          다음
-        </button>
-      </div>
+      {/* 입력창 — 아직 질문 전에만 표시 */}
+      {!sent && (
+        <div className="px-4 pb-6 pt-3 border-t border-gray-100 safe-bottom">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
+              placeholder="냉탐이에게 물어보세요..."
+              className="flex-1 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#13AF70]"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!inputText.trim() || isLoading}
+              className="w-12 h-12 rounded-2xl bg-[#13AF70] flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform flex-shrink-0"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </MobileContainer>
   )
 }
