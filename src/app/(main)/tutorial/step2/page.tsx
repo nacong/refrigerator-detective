@@ -28,7 +28,7 @@ export default function TutorialStep2Page() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="w-28 h-28 rounded-full bg-[#E8F9F1] flex items-center justify-center">
-            <span className="text-6xl">📸</span>
+            <span className="text-[56px]">📸</span>
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">AI 식재료 인식</h2>

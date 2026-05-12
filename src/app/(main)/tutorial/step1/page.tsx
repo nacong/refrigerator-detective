@@ -19,10 +19,10 @@ export default function TutorialStep1Page() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
         <div className="flex flex-col items-center gap-4">
           <div className="w-28 h-28 rounded-full bg-[#E8F9F1] flex items-center justify-center">
-            <span className="text-6xl">🕵️</span>
+            <span className="text-[56px]">🕵️</span>
           </div>
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">냉장고 탐정</h2>
+            <h2 className="text-[22px] font-bold text-gray-800 mb-2">냉장고 탐정</h2>
             <p className="text-sm text-gray-500 leading-relaxed">
               AI가 냉장고 속 재료를 인식하고<br />
               유통기한을 관리해 드려요

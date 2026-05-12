@@ -24,12 +24,12 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-gray-800 mb-1">냉장고 탐정</h1>
-          <p className="text-sm text-gray-400 font-medium tracking-wider">REFRIGERATOR DETECTIVE</p>
+          <p className="text-xs text-gray-400 font-medium tracking-widest">REFRIGERATOR DETECTIVE</p>
         </div>
 
         {/* 슬로건 */}
         <div className="text-center mb-12">
-          <p className="text-base text-gray-500 leading-relaxed">
+          <p className="text-[15px] text-gray-500 leading-relaxed">
             냉장고 속 재료로<br />
             오늘의 레시피를 찾아드려요!
           </p>
