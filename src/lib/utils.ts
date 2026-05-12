@@ -10,11 +10,11 @@ export function getDaysUntilExpiry(expiryDate: string): number {
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
 }
 
-// D-day 배지 상태 결정
+// D-day 배지 상태 결정 (urgent: D-0~D-3, caution: D-4~D-7, safe: D-8+)
 export function getExpiryStatus(expiryDate: string): ExpiryStatus {
   const days = getDaysUntilExpiry(expiryDate)
-  if (days <= 1) return 'urgent'
-  if (days <= 4) return 'caution'
+  if (days <= 3) return 'urgent'
+  if (days <= 7) return 'caution'
   return 'safe'
 }
 
@@ -22,7 +22,7 @@ export function getExpiryStatus(expiryDate: string): ExpiryStatus {
 export function formatDDay(expiryDate: string): string {
   const days = getDaysUntilExpiry(expiryDate)
   if (days < 0) return `D+${Math.abs(days)}`
-  if (days === 0) return 'D-0'
+  if (days === 0) return 'D-DAY'
   return `D-${days}`
 }
 
