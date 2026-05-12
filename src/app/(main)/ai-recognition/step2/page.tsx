@@ -51,7 +51,6 @@ function AIStep2Content() {
           emoji: ingredient.emoji || '🥘',
           quantity: ingredient.quantity || '적당량',
           expiryDate: ingredient.expiryDate || '',
-          price: ingredient.price ?? 0,
         })
       }
       router.push(from === 'rescue-list' ? '/rescue-list' : '/')
@@ -165,17 +164,6 @@ function AIStep2Content() {
                   type="date"
                   value={editValues.expiryDate || ''}
                   onChange={(e) => setEditValues((v) => ({ ...v, expiryDate: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">가격 (원)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={editValues.price ?? ''}
-                  onChange={(e) => setEditValues((v) => ({ ...v, price: e.target.value ? parseInt(e.target.value) : undefined }))}
-                  placeholder="예: 3500"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
                 />
               </div>

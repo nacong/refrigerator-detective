@@ -19,7 +19,7 @@ export function useIngredients() {
 export function useAddIngredient() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (ingredient: Pick<Ingredient, 'name' | 'emoji' | 'quantity' | 'expiryDate' | 'price'>) => {
+    mutationFn: async (ingredient: Pick<Ingredient, 'name' | 'emoji' | 'quantity' | 'expiryDate'>) => {
       const res = await fetch('/api/supabase/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

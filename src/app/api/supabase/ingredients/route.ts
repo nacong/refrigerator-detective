@@ -12,7 +12,6 @@ interface IngredientRow {
   quantity: string
   expiry_date: string
   user_email: string
-  price: number
 }
 
 export async function GET() {
@@ -36,7 +35,6 @@ export async function GET() {
     emoji: row.emoji || '🥘',
     quantity: row.quantity,
     expiryDate: row.expiry_date,
-    price: row.price ?? 0,
     userId: row.user_email,
   }))
 
@@ -59,7 +57,6 @@ export async function POST(req: NextRequest) {
       emoji: body.emoji,
       quantity: body.quantity,
       expiry_date: body.expiryDate,
-      price: body.price ?? 0,
       user_email: session.user.email,
     })
     .select()

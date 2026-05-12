@@ -17,8 +17,6 @@ export default function RescueListPage() {
     (a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
   )
 
-  const totalPrice = ingredients.reduce((sum, i) => sum + (i.price ?? 0), 0)
-
   const handleDelete = (id: string) => {
     deleteIngredient.mutate(id)
   }
@@ -43,11 +41,6 @@ export default function RescueListPage() {
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 no-scrollbar">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">냉장고 식재료 목록</p>
-          {totalPrice > 0 && (
-            <p className="text-sm font-semibold text-[#13AF70]">
-              총 ₩{totalPrice.toLocaleString()}
-            </p>
-          )}
         </div>
 
         {/* 로딩 상태 */}

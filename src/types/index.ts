@@ -6,7 +6,6 @@ export interface Ingredient {
   emoji: string
   quantity: string
   expiryDate: string // ISO 날짜 문자열 (YYYY-MM-DD)
-  price?: number
   userId?: string
   imageUrl?: string
 }
