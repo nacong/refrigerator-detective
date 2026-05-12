@@ -62,9 +62,15 @@ export default function TutorialStep1Page() {
   }
 
   const handleNext = async () => {
+    setError(null)
     setIsSaving(true)
+    const toSave = recognizedIngredients.filter((i) => i.name?.trim())
+    if (toSave.length === 0) {
+      setError('저장할 식재료가 없어요. 사진을 다시 찍어주세요.')
+      setIsSaving(false)
+      return
+    }
     try {
-      const toSave = recognizedIngredients.filter((i) => i.name?.trim())
       for (const ingredient of toSave) {
         await addIngredient.mutateAsync({
           name: ingredient.name!,
@@ -75,8 +81,8 @@ export default function TutorialStep1Page() {
         })
       }
       router.push('/tutorial/step2')
-    } catch {
-      setError('저장 중 오류가 발생했어요. 다시 시도해주세요.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '저장 중 오류가 발생했어요.')
     } finally {
       setIsSaving(false)
     }
