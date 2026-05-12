@@ -6,7 +6,7 @@ import ExpiryBadge from '@/components/ui/ExpiryBadge'
 import { useIngredients, useDeleteIngredient } from '@/hooks/useIngredients'
 import type { Ingredient } from '@/types'
 
-// 화면 4: 구조대 목록 상세 페이지
+// 화면 4: 나의 식재료 상세 페이지
 export default function RescueListPage() {
   const router = useRouter()
   const { data: ingredients = [], isLoading } = useIngredients()
@@ -36,7 +36,7 @@ export default function RescueListPage() {
             <path d="M15 18l-6-6 6-6" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-base font-bold text-gray-800">구조대 목록</h1>
+        <h1 className="text-base font-bold text-gray-800">나의 식재료</h1>
       </header>
 
       {/* 콘텐츠 */}
@@ -52,15 +52,15 @@ export default function RescueListPage() {
 
         {/* 로딩 상태 */}
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-[130px] bg-gray-100 rounded-2xl animate-pulse" />
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-[110px] bg-gray-100 rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : (
 
-        /* 2열 그리드 */
-        <div className="grid grid-cols-2 gap-3">
+        /* 3열 그리드 */
+        <div className="grid grid-cols-3 gap-2">
           {sortedIngredients.map((ingredient) => (
             <IngredientCard
               key={ingredient.id}
@@ -71,11 +71,12 @@ export default function RescueListPage() {
 
           {/* 식재료 추가 카드 */}
           <button
-            onClick={() => router.push('/ai-recognition/step1?from=rescue-list')}
-            className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl p-4 min-h-[120px] active:bg-gray-50 transition-colors"
+            onClick={() => router.push('/ai-recognition/step2?from=rescue-list')}
+            className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl active:bg-gray-50 transition-colors"
+            style={{ minHeight: 110 }}
           >
-            <span className="text-2xl text-gray-300">+</span>
-            <span className="text-sm text-gray-400 font-medium">식재료 추가</span>
+            <span className="text-xl text-gray-300 font-light">+</span>
+            <span className="text-xs text-gray-400 font-medium">식재료 추가</span>
           </button>
         </div>
         )}
@@ -84,7 +85,7 @@ export default function RescueListPage() {
       {/* 하단 고정 버튼 */}
       <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-white border-t border-gray-100 safe-bottom">
         <button
-          onClick={() => router.push('/ai-recognition/step1?from=rescue-list')}
+          onClick={() => router.push('/ai-recognition/step2?from=rescue-list')}
           className="w-full bg-[#13AF70] text-white font-semibold py-4 rounded-2xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
         >
           <span>📸</span>
@@ -104,24 +105,32 @@ function IngredientCard({
   onDelete: () => void
 }) {
   return (
-    <div className="relative bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      {/* 삭제 버튼 */}
+    <div className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden" style={{ minHeight: 110 }}>
+      {/* D-day 뱃지 — 좌상단 */}
+      <div className="absolute top-2 left-2">
+        <ExpiryBadge expiryDate={ingredient.expiryDate} size="sm" />
+      </div>
+
+      {/* 삭제 버튼 — 우상단 */}
       <button
         onClick={onDelete}
-        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-xs active:bg-red-100 active:text-red-400"
+        className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[10px] active:bg-red-100 active:text-red-400"
         aria-label={`${ingredient.name} 삭제`}
       >
         ✕
       </button>
 
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-3xl">{ingredient.emoji}</span>
-        <p className="text-sm font-semibold text-gray-700 text-center">{ingredient.name}</p>
-        <p className="text-xs text-gray-400">{ingredient.quantity}</p>
-        {(ingredient.price ?? 0) > 0 && (
-          <p className="text-xs font-medium text-[#13AF70]">₩{ingredient.price!.toLocaleString()}</p>
+      {/* 이모지 */}
+      <div className="flex justify-center mt-8 mb-1">
+        <span className="text-[36px] leading-none">{ingredient.emoji}</span>
+      </div>
+
+      {/* 이름 + 수량 한 줄 */}
+      <div className="flex items-baseline justify-center gap-1 px-2 pb-3">
+        <span className="text-[12px] font-semibold text-gray-700 truncate">{ingredient.name}</span>
+        {ingredient.quantity && (
+          <span className="text-[11px] text-gray-400 flex-shrink-0">{ingredient.quantity}</span>
         )}
-        <ExpiryBadge expiryDate={ingredient.expiryDate} />
       </div>
     </div>
   )
