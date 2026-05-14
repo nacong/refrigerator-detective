@@ -64,20 +64,26 @@ export function useChat() {
         })
       }
 
-      // 스트리밍 완료 후 — AI 응답의 "레시피명:" 기준으로 카드 매칭
+      // 스트리밍 완료 후 — AI 응답에 언급된 레시피 카드 매칭
       const cards = chatRecipes ?? []
 
-      // 1) 응답에서 "레시피명: X" 추출
+      // "레시피명: X" 패턴 추출
       const nameMatches = Array.from(assistantContent.matchAll(/레시피명:\s*([^\n]+)/g))
       const mentionedNames = nameMatches.map((m) => m[1].trim())
 
-      const matched = mentionedNames.length > 0
-        ? cards.filter((r) =>
-            mentionedNames.some(
-              (n) => r.name === n || n.includes(r.name) || r.name.includes(n)
-            )
-          )
-        : cards.filter((r) => assistantContent.includes(r.name))
+      // 두 방법 모두 적용해서 합산 (레시피명: 패턴 + 본문에 이름 포함)
+      const matchedSet = new Set<string>()
+      const matched = cards.filter((r) => {
+        const byRegex = mentionedNames.some(
+          (n) => r.name === n || n.includes(r.name) || r.name.includes(n)
+        )
+        const byIncludes = assistantContent.includes(r.name)
+        if ((byRegex || byIncludes) && !matchedSet.has(r.name)) {
+          matchedSet.add(r.name)
+          return true
+        }
+        return false
+      })
 
       // 매칭 실패 시 전체 카드 표시 안 함 (엉뚱한 카드 방지)
       useAppStore.setState((state) => {
