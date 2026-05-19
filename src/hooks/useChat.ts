@@ -13,6 +13,7 @@ export function useChat() {
       id: `user-${Date.now()}`,
       role: 'user',
       content,
+      selectedIngredients: selectedIngredients.length > 0 ? [...selectedIngredients] : undefined,
       createdAt: new Date().toISOString(),
     }
     addChatMessage(userMessage)
@@ -29,9 +30,12 @@ export function useChat() {
         }),
       })
 
-      if (!res.ok || !res.body) throw new Error('응답 오류')
+      if (!res.ok || !res.body) {
+        if (res.status === 429) throw new Error('__429__')
+        throw new Error('응답 오류')
+      }
 
-      // 레시피 카드 헤더 파싱
+      // 서버에서 이미 인텐트를 판단해 레시피 카드를 결정함
       let chatRecipes: ChatMessage['chatRecipes'] = []
       try {
         const header = res.headers.get('X-Recipe-Cards')
@@ -42,20 +46,18 @@ export function useChat() {
       const decoder = new TextDecoder()
       let assistantContent = ''
 
-      const assistantMessage: ChatMessage = {
+      addChatMessage({
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: '',
         chatRecipes,
         createdAt: new Date().toISOString(),
-      }
-      addChatMessage(assistantMessage)
+      })
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value)
-        assistantContent += chunk
+        assistantContent += decoder.decode(value)
 
         useAppStore.setState((state) => {
           const msgs = [...state.chatMessages]
@@ -63,44 +65,16 @@ export function useChat() {
           return { chatMessages: msgs }
         })
       }
-
-      // 스트리밍 완료 후 — AI 응답에 언급된 레시피 카드 매칭
-      const cards = chatRecipes ?? []
-
-      // "레시피명: X" 패턴 추출
-      const nameMatches = Array.from(assistantContent.matchAll(/레시피명:\s*([^\n]+)/g))
-      const mentionedNames = nameMatches.map((m) => m[1].trim())
-
-      // 두 방법 모두 적용해서 합산 (레시피명: 패턴 + 본문에 이름 포함)
-      const matchedSet = new Set<string>()
-      const matched = cards.filter((r) => {
-        const byRegex = mentionedNames.some(
-          (n) => r.name === n || n.includes(r.name) || r.name.includes(n)
-        )
-        const byIncludes = assistantContent.includes(r.name)
-        if ((byRegex || byIncludes) && !matchedSet.has(r.name)) {
-          matchedSet.add(r.name)
-          return true
-        }
-        return false
-      })
-
-      // 매칭 실패 시 전체 카드 표시 안 함 (엉뚱한 카드 방지)
-      useAppStore.setState((state) => {
-        const msgs = [...state.chatMessages]
-        msgs[msgs.length - 1] = {
-          ...msgs[msgs.length - 1],
-          chatRecipes: matched,
-        }
-        return { chatMessages: msgs }
-      })
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       console.error('채팅 오류:', msg)
+      const displayMsg = msg === '__429__'
+        ? '지금 탐정사무소가 너무 바빠서요! 😅 잠깐만 기다렸다가 다시 말씀해 주실 수 있을까요?'
+        : `오류: ${msg}`
       addChatMessage({
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: `오류: ${msg}`,
+        content: displayMsg,
         createdAt: new Date().toISOString(),
       })
     } finally {

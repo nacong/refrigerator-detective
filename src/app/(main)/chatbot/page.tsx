@@ -24,8 +24,6 @@ export default function ChatbotPage() {
   }
   const [inputText, setInputText] = useState('')
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
-  const [isIndexing, setIsIndexing] = useState(false)
-  const [indexResult, setIndexResult] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -52,73 +50,30 @@ export default function ChatbotPage() {
     }
   }
 
-  const handleIndexSampleData = async () => {
-    setIsIndexing(true)
-    setIndexResult(null)
-    try {
-      const res = await fetch('/api/pinecone/index', { method: 'POST' })
-      const text = await res.text()
-      try {
-        const data = JSON.parse(text)
-        if (res.ok) {
-          setIndexResult(`✅ ${data.count}개 레시피 인덱싱 완료!`)
-        } else {
-          setIndexResult(`❌ ${data.error}`)
-        }
-      } catch {
-        setIndexResult(`❌ 서버 오류 (${res.status}): ${text.slice(0, 120)}`)
-      }
-    } catch (e) {
-      setIndexResult(`❌ ${e instanceof Error ? e.message : '요청 실패'}`)
-    } finally {
-      setIsIndexing(false)
-    }
-  }
-
   const allMessages =
     chatMessages.length === 0 ? [initialMessage] : [initialMessage, ...chatMessages]
 
   return (
     <MobileContainer fullHeight>
       {/* 헤더 */}
-      <header className="flex items-center justify-between px-4 safe-top pt-4 pb-3 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
-            aria-label="뒤로가기"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="#374151"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-gray-800">냉탐이의 탐정사무소</h1>
-          </div>
-        </div>
-
-        {/* 샘플 데이터 인덱싱 버튼 */}
+      <header className="flex items-center gap-3 px-4 safe-top pt-4 pb-3 border-b border-gray-100">
         <button
-          onClick={handleIndexSampleData}
-          disabled={isIndexing}
-          className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1.5 rounded-lg active:bg-gray-200 disabled:opacity-50 whitespace-nowrap"
+          onClick={() => router.back()}
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
+          aria-label="뒤로가기"
         >
-          {isIndexing ? '인덱싱 중…' : '샘플 인덱싱'}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M15 18l-6-6 6-6"
+              stroke="#374151"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
+        <h1 className="text-base font-bold text-gray-800">냉탐이의 탐정사무소</h1>
       </header>
-
-      {/* 인덱싱 결과 */}
-      {indexResult && (
-        <div className="px-4 py-2 bg-gray-50 text-xs text-center text-gray-600 border-b border-gray-100">
-          {indexResult}
-        </div>
-      )}
 
       {/* 채팅 메시지 영역 */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 no-scrollbar">
@@ -127,12 +82,22 @@ export default function ChatbotPage() {
         ))}
 
         {isLoading && (
-          <div className="flex justify-start mb-3">
-            <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
-              <div className="flex gap-1.5 items-center">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+          <div className="flex justify-start items-start gap-2 mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/character.jpg"
+              alt="냉탐이"
+              className="rounded-[14px] object-cover flex-shrink-0 mt-[6px]"
+              style={{ width: 44, height: 44 }}
+            />
+            <div>
+              <p className="text-[11px] font-normal text-gray-500 pl-1 mb-0.5">냉탐이</p>
+              <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3">
+                <div className="flex gap-1.5 items-center">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                </div>
               </div>
             </div>
           </div>

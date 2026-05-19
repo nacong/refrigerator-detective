@@ -56,8 +56,24 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
   if (isUser) {
     return (
       <div className="flex justify-end mb-3">
-        <div className="max-w-[70%] bg-[#13AF70] text-white rounded-tl-2xl rounded-tr-[4px] rounded-bl-2xl rounded-br-2xl px-4 py-2.5">
-          <p className="text-[13.5px] whitespace-pre-wrap leading-relaxed">{message.content}</p>
+        <div className="max-w-[75%] flex flex-col items-end gap-1.5">
+          {/* 선택된 재료 칩 */}
+          {message.selectedIngredients && message.selectedIngredients.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-1">
+              {message.selectedIngredients.map((name) => (
+                <span
+                  key={name}
+                  className="text-[11px] font-medium bg-[#E8F9F1] text-[#13AF70] px-2 py-0.5 rounded-full"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* 메시지 버블 */}
+          <div className="bg-[#13AF70] text-white rounded-tl-2xl rounded-tr-[4px] rounded-bl-2xl rounded-br-2xl px-4 py-2.5">
+            <p className="text-[13.5px] whitespace-pre-wrap leading-relaxed">{message.content}</p>
+          </div>
         </div>
       </div>
     )

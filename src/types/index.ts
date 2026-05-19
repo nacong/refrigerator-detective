@@ -37,6 +37,7 @@ export interface ChatMessage {
   content: string
   recipes?: Recipe[]
   chatRecipes?: ChatRecipe[]
+  selectedIngredients?: string[] // 유저 메시지에 첨부된 선택 재료
   createdAt: string
 }
 

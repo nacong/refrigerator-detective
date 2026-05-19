@@ -59,7 +59,6 @@ export default function CookingProcessPage() {
         body: JSON.stringify({
           recipeName: recipe?.name ?? '',
           cookTime: recipe?.cookTimeMinutes ?? 0,
-          imageUrl: recipe?.imageUrl ?? '',
         }),
       })
       queryClient.invalidateQueries({ queryKey: ['cooking-history'] })

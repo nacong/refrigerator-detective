@@ -3,13 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 export interface CookingHistoryItem {
   id: string
   user_email: string
-  recipe_name: string
+  recipe_id: string | null
+  cooked_at: string
   cook_time: number
+  // recipes 조인 데이터
+  recipe_name: string
   thumbnail_url: string
   cost_per_serving: number
   ingredients: string[]
-  cooked_at: string
-  created_at: string
+  steps: string[]
 }
 
 export function useCookingHistory() {

@@ -25,7 +25,7 @@ export default function MainPage() {
       ingredientsRaw: item.ingredients.join(', '),
       imageUrl: item.thumbnail_url,
       sourceUrl: '',
-      steps: [],
+      steps: item.steps,
     })
     router.push('/cooking-process')
   }
