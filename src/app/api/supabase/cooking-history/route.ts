@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
       user_email: session.user.email,
       recipe_name: body.recipeName,
       cook_time: body.cookTime ?? 0,
-      image_url: body.imageUrl ?? '',
       cooked_at: new Date().toISOString(),
     })
     .select()

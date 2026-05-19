@@ -5,7 +5,6 @@ export interface CookingHistoryItem {
   user_email: string
   recipe_name: string
   cook_time: number
-  image_url: string
   thumbnail_url: string
   cost_per_serving: number
   ingredients: string[]
