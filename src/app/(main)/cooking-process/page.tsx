@@ -53,19 +53,16 @@ export default function CookingProcessPage() {
     setIsDone(true)
 
     try {
-      await fetch('/api/supabase/recipes', {
+      await fetch('/api/supabase/cooking-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: recipe?.name ?? '',
+          recipeName: recipe?.name ?? '',
           cookTime: recipe?.cookTimeMinutes ?? 0,
-          costPerServing: 0,
-          thumbnailUrl: recipe?.imageUrl ?? '',
-          ingredients: ingredientList,
-          description: recipe?.sourceUrl ?? '',
+          imageUrl: recipe?.imageUrl ?? '',
         }),
       })
-      queryClient.invalidateQueries({ queryKey: ['recipes'] })
+      queryClient.invalidateQueries({ queryKey: ['cooking-history'] })
     } catch {
       // 저장 실패해도 UI는 완료 상태 유지
     } finally {
