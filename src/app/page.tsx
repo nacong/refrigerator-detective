@@ -4,33 +4,20 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
-import IngredientChip from '@/components/ui/IngredientChip'
+import DetectiveSummaryHero from '@/components/DetectiveSummaryHero'
+import MyFridgeSection from '@/components/MyFridgeSection'
+import TodayRecommendedRecipes from '@/components/TodayRecommendedRecipes'
+import DetectiveOfficeSection from '@/components/DetectiveOfficeSection'
+import BottomNavigation from '@/components/BottomNavigation'
 import { useIngredients } from '@/hooks/useIngredients'
-import { useCookingHistory, type CookingHistoryItem } from '@/hooks/useCookingHistory'
-import { useAppStore } from '@/store/useAppStore'
 
-// 화면 2: 메인 페이지
+// 화면 2: 메인 페이지 — 상단 정보 / 하단 캐릭터 오피스 2단 구성
 export default function MainPage() {
   const router = useRouter()
   const { data: session } = useSession()
   const { data: ingredients = [], isLoading: loadingIngredients } = useIngredients()
-  const { data: history = [], isLoading: loadingHistory } = useCookingHistory()
-  const setSelectedRecipe = useAppStore((s) => s.setSelectedRecipe)
 
-  const handleHistoryClick = (item: CookingHistoryItem) => {
-    setSelectedRecipe({
-      name: item.recipe_name,
-      cookingMethod: '',
-      cookTimeMinutes: item.cook_time,
-      ingredientsRaw: item.ingredients.join(', '),
-      imageUrl: item.thumbnail_url,
-      sourceUrl: '',
-      steps: item.steps,
-    })
-    router.push('/cooking-process')
-  }
-
-  // 첫 로그인 감지 — 식재료가 없으면 AI 인식으로 이동
+  // 첫 로그인 감지 — 식재료가 없으면 튜토리얼로 이동
   useEffect(() => {
     if (!session?.user?.email) return
     if (loadingIngredients) return
@@ -44,17 +31,16 @@ export default function MainPage() {
     }
   }, [session, loadingIngredients, ingredients.length, router])
 
-  // 유통기한 임박 순으로 정렬
-  const rescueList = [...ingredients].sort(
-    (a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
-  )
-
   return (
     <MobileContainer fullHeight>
       <div className="safe-top" />
 
       {/* 헤더 */}
-      <header className="px-4 pt-2 pb-3 flex items-center justify-end">
+      <header className="px-4 pt-2 pb-3 flex items-center justify-between">
+        <span className="w-9 h-9" aria-hidden />
+        <h1 className="text-[17px] font-bold text-gray-800 flex items-center gap-1 whitespace-nowrap">
+          냉장고 탐정 <span aria-hidden className="text-[#7B5CD6]">✨</span>
+        </h1>
         <button
           onClick={() => router.push('/settings')}
           className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
@@ -79,145 +65,39 @@ export default function MainPage() {
         </button>
       </header>
 
-      <div className="overflow-y-auto no-scrollbar pb-2">
-        {/* 섹션 1: 나의 식재료 */}
-        <section className="mb-6">
-          <div className="flex items-center justify-between px-4 mb-3">
-            <h2 className="text-base font-bold text-gray-800">나의 식재료</h2>
-            <button
-              onClick={() => router.push('/rescue-list')}
-              className="text-sm text-[#13AF70] font-medium"
-            >
-              더보기 →
-            </button>
-          </div>
-          <div className="flex gap-3 px-4 overflow-x-auto no-scrollbar pb-1">
-            {loadingIngredients ? (
-              <div className="flex gap-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-[90px] h-[90px] bg-gray-100 rounded-2xl animate-pulse flex-shrink-0" />
-                ))}
-              </div>
-            ) : rescueList.length === 0 ? (
-              <button
-                onClick={() => router.push('/ai-recognition/step2')}
-                className="flex items-center gap-2 py-4 text-sm text-[#13AF70] font-medium"
-              >
-                <span>📸</span>
-                <span>AI로 식재료 등록하기</span>
-              </button>
-            ) : (
-              rescueList.slice(0, 8).map((ingredient) => (
-                <IngredientChip
-                  key={ingredient.id}
-                  ingredient={ingredient}
-                  onClick={() => router.push('/rescue-list')}
-                />
-              ))
-            )}
-          </div>
-        </section>
+      {/* ── 상단 절반: 정보 영역 ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-1 pb-[80px]">
+        {/* 히어로 섹션 */}
+        <DetectiveSummaryHero
+          ingredients={ingredients}
+          onClickAddIngredient={() => router.push('/ai-recognition/step1')}
+          onClickFindRecipeWithDetective={() => router.push('/chatbot')}
+        />
 
-        {/* 섹션 2: 요리 기록 */}
-        <section className="mb-2">
-          <div className="flex items-center justify-between px-4 mb-3">
-            <h2 className="text-base font-bold text-gray-800">요리 기록</h2>
-            <button
-              onClick={() => router.push('/cooking-history')}
-              className="text-sm text-[#13AF70] font-medium"
-            >
-              더보기 →
-            </button>
-          </div>
-          <div className="flex gap-3 px-4 overflow-x-auto no-scrollbar pb-1">
-            {loadingHistory ? (
-              <div className="flex gap-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-[140px] h-[160px] bg-gray-100 rounded-2xl animate-pulse flex-shrink-0" />
-                ))}
-              </div>
-            ) : history.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4">아직 요리 기록이 없어요</p>
-            ) : (
-              history.slice(0, 6).map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleHistoryClick(item)}
-                  className="flex-shrink-0 w-[140px] bg-white rounded-2xl overflow-hidden border border-gray-100 active:scale-95 transition-transform text-left"
-                >
-                  {/* 이미지 영역 */}
-                  <div className="w-full h-[96px] bg-gradient-to-br from-yellow-100 to-orange-100 flex items-center justify-center overflow-hidden">
-                    {item.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.thumbnail_url}
-                        alt={item.recipe_name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-[48px] leading-none">🍳</span>
-                    )}
-                    </div>
+        {/* 내 냉장고 */}
+        <MyFridgeSection
+          ingredients={ingredients}
+          isLoading={loadingIngredients}
+          onClickAll={() => router.push('/rescue-list')}
+          onClickItem={() => router.push('/rescue-list')}
+          onClickAdd={() => router.push('/ai-recognition/step1')}
+        />
 
-                  {/* 텍스트 영역 */}
-                  <div className="px-3 pt-2.5 pb-3">
-                    <p className="text-[13px] font-bold text-gray-800 truncate">{item.recipe_name}</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                      {item.cook_time > 0 && (
-                        <span className="flex items-baseline gap-[3px]">
-                          <span className="text-[15px] font-bold text-gray-900">{item.cook_time}</span>
-                          <span className="text-[11px] text-gray-400">분</span>
-                        </span>
-                      )}
-                      {item.cost_per_serving >= 0 && (
-                        <span className="flex items-baseline gap-[3px]">
-                          <span className="text-[15px] font-bold text-gray-900">{item.cost_per_serving.toLocaleString()}</span>
-                          <span className="text-[11px] text-gray-400">원</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
+        {/* 오늘의 추천 레시피 */}
+        <TodayRecommendedRecipes
+          fridgeIngredients={ingredients}
+          onClickRecipe={() => router.push('/recipe')}
+          onClickViewMore={() => router.push('/recipe')}
+        />
 
-      {/* 캐릭터 영역 — 항상 하단 고정 */}
-      <div className="flex-1 flex flex-col items-center justify-end pb-4 safe-bottom">
-        <button
+        {/* ── 하단: 탐정 주방 + 마스코트 ── */}
+        <DetectiveOfficeSection
           onClick={() => router.push('/chatbot')}
-          className="flex flex-col items-center gap-3 active:scale-[0.98] transition-transform"
-        >
-          {/* SVG 말풍선 */}
-          <div className="relative w-[210px] flex items-center justify-center" style={{ paddingBottom: 11 }}>
-            <svg
-              viewBox="0 0 260 100"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full"
-            >
-              <path
-                d="M16 1 H244 a15 15 0 0 1 15 15 v54 a15 15 0 0 1 -15 15 H146 c-2 0 -3 1 -4 3 l-7 11 c-3 4 -8 4 -11 0 l-7 -11 c-1 -2 -2 -3 -4 -3 H16 a15 15 0 0 1 -15 -15 v-54 a15 15 0 0 1 15 -15 z"
-                fill="#E8F9F1"
-                stroke="#13AF70"
-                strokeWidth="1"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <p className="relative text-[12px] font-medium text-gray-700 text-center leading-relaxed px-[18px] py-[12px] pb-[17px]">
-              저를 눌러보세요<br />맛있는 레시피를 찾아드릴게요!
-            </p>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/character.jpg"
-            alt="냉탐이"
-            className="w-44 h-44 rounded-full object-cover"
-          />
-        </button>
+        />
       </div>
+
+      {/* 하단 고정 네비 */}
+      <BottomNavigation active="home" />
     </MobileContainer>
   )
 }

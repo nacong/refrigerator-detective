@@ -59,7 +59,7 @@ export async function GET() {
     user_email: h.user_email,
     recipe_id: h.recipe_id,
     cooked_at: h.cooked_at,
-    cook_time: h.cook_time ?? recipeMap[h.recipe_id]?.cook_time ?? 0,
+    cook_time: (h as { cook_time?: number }).cook_time ?? 0,
     // recipes 조인
     recipe_name: recipeMap[h.recipe_id]?.name ?? '',
     thumbnail_url: recipeMap[h.recipe_id]?.thumbnail_url ?? '',
