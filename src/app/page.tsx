@@ -4,7 +4,6 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
-import DetectiveSummaryHero from '@/components/DetectiveSummaryHero'
 import MyFridgeSection from '@/components/MyFridgeSection'
 import TodayRecommendedRecipes from '@/components/TodayRecommendedRecipes'
 import DetectiveOfficeSection from '@/components/DetectiveOfficeSection'
@@ -65,16 +64,8 @@ export default function MainPage() {
         </button>
       </header>
 
-      {/* ── 상단 절반: 정보 영역 ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-1 pb-[80px]">
-        {/* 히어로 섹션 */}
-        <DetectiveSummaryHero
-          ingredients={ingredients}
-          onClickAddIngredient={() => router.push('/ai-recognition/step1')}
-          onClickFindRecipeWithDetective={() => router.push('/chatbot')}
-        />
-
-        {/* 내 냉장고 */}
+      {/* 상단 정보 영역 — 스크롤 없음 */}
+      <div className="pt-1">
         <MyFridgeSection
           ingredients={ingredients}
           isLoading={loadingIngredients}
@@ -83,14 +74,15 @@ export default function MainPage() {
           onClickAdd={() => router.push('/ai-recognition/step1')}
         />
 
-        {/* 오늘의 추천 레시피 */}
         <TodayRecommendedRecipes
           fridgeIngredients={ingredients}
           onClickRecipe={() => router.push('/recipe')}
           onClickViewMore={() => router.push('/recipe')}
         />
+      </div>
 
-        {/* ── 하단: 탐정 주방 + 마스코트 ── */}
+      {/* 하단 캐릭터 영역 — 남은 공간 채우며 하단 고정 */}
+      <div className="flex-1 min-h-0">
         <DetectiveOfficeSection
           onClick={() => router.push('/chatbot')}
         />

@@ -18,10 +18,13 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-8 pb-12">
         {/* 캐릭터 아이콘 및 앱 이름 */}
         <div className="flex flex-col items-center mb-8">
-          {/* 탐정 캐릭터 이미지 공간 */}
-          <div className="w-24 h-24 rounded-full bg-[#E8F9F1] flex items-center justify-center mb-4">
-            <span className="text-5xl">🔍</span>
-          </div>
+          {/* 탐정 캐릭터 이미지 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/detective_ingredient.png"
+            alt="냉탐이"
+            className="w-32 h-32 object-contain mb-4"
+          />
 
           <h1 className="text-2xl font-bold text-gray-800 mb-1">냉장고 탐정</h1>
           <p className="text-xs text-gray-400 font-medium tracking-widest">REFRIGERATOR DETECTIVE</p>
