@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
 import BottomNavigation from '@/components/BottomNavigation'
 
 export default function SettingsPage() {
-  const router = useRouter()
   const { data: session } = useSession()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)

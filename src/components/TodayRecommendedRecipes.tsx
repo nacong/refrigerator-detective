@@ -42,7 +42,6 @@ export default function TodayRecommendedRecipes({
   isLoading = false,
   expiringSoonIngredients,
   onClickRecipe,
-  onClickViewMore,
 }: TodayRecommendedRecipesProps) {
   const fridge = fridgeIngredients
   const source = recipes ?? []

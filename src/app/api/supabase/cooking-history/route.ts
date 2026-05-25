@@ -24,7 +24,7 @@ export async function GET() {
 
   // recipe_name으로 db_recipes 일괄 조회
   const names = [...new Set(history.map((h) => h.recipe_name).filter(Boolean))] as string[]
-  let recipeMap: Record<string, {
+  const recipeMap: Record<string, {
     cook_time_minutes: number
     image_url: string
     ingredient_names: string[]

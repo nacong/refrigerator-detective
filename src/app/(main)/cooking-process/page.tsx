@@ -11,11 +11,6 @@ export default function CookingProcessPage() {
   const queryClient = useQueryClient()
   const recipe = useAppStore((s) => s.selectedRecipe)
 
-  const ingredientList = (recipe?.ingredientsRaw ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-
   const cookingSteps = recipe?.steps ?? []
   const totalSteps = 1 + cookingSteps.length
 
