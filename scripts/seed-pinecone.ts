@@ -96,7 +96,7 @@ async function main() {
     // 벡터 구성
     const vectors = batch.map((r, idx) => ({
       id: `recipe-${r.id || (i + idx)}`,
-      values: (embeddings[idx] as { values: number[] }).values,
+      values: (Array.from(embeddings)[idx] as { values: number[] }).values,
       metadata: {
         name: r.name.trim(),
         cooking_method: r.cooking_method || '',
