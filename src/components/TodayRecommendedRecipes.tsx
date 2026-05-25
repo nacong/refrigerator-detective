@@ -44,7 +44,6 @@ export default function TodayRecommendedRecipes({
   onClickRecipe,
 }: TodayRecommendedRecipesProps) {
   const fridge = fridgeIngredients
-  const source = recipes ?? []
 
   const expiring = useMemo(() => {
     if (expiringSoonIngredients) return expiringSoonIngredients
@@ -52,6 +51,7 @@ export default function TodayRecommendedRecipes({
   }, [fridge, expiringSoonIngredients])
 
   const ranked = useMemo(() => {
+    const source = recipes ?? []
     const ingNames = new Set(fridge.map((i) => i.name))
     const expNames = new Set(expiring.map((i) => i.name))
 
@@ -72,7 +72,7 @@ export default function TodayRecommendedRecipes({
         return b._matched.length - a._matched.length
       })
       .slice(0, 3)
-  }, [source, fridge, expiring])
+  }, [recipes, fridge, expiring])
 
   if (!isLoading && ranked.length === 0) return null
 
