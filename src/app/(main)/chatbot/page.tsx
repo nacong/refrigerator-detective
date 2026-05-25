@@ -85,7 +85,7 @@ export default function ChatbotPage() {
           <div className="flex justify-start items-start gap-2 mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/character.jpg"
+              src="/images/detective_frontview.png"
               alt="냉탐이"
               className="rounded-[14px] object-cover flex-shrink-0 mt-[6px]"
               style={{ width: 44, height: 44 }}
@@ -141,22 +141,6 @@ export default function ChatbotPage() {
                 </button>
               )
             })}
-          </div>
-        )}
-
-        {/* 선택된 재료 요약 */}
-        {selectedIngredients.length > 0 && (
-          <div className="flex items-center gap-1 mb-1.5 text-xs">
-            <span className="text-gray-400">선택:</span>
-            <span className="text-[#13AF70] font-medium truncate flex-1">
-              {selectedIngredients.join(', ')}
-            </span>
-            <button
-              onClick={() => setSelectedIngredients([])}
-              className="text-gray-300 flex-shrink-0"
-            >
-              초기화
-            </button>
           </div>
         )}
 

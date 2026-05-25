@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getPineconeClient, PINECONE_INDEX, EMBEDDING_MODEL } from '@/lib/pinecone'
+import { getPineconeClient, PINECONE_INDEX, EMBEDDING_MODEL, RECIPE_NAMESPACE } from '@/lib/pinecone'
 import { PineconeStore } from '@langchain/pinecone'
 import { PineconeEmbeddings } from '@langchain/pinecone'
 import { Document } from '@langchain/core/documents'
@@ -43,14 +43,9 @@ function parseSteps(stepsStr: string): string {
   }
 }
 
-export async function POST() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
-  }
-
+async function handleIndex() {
   try {
-    const csvPath = join(process.cwd(), 'samples', 'recipe.csv')
+    const csvPath = join(process.cwd(), 'samples', 'recipes_10000_rows.csv')
     const content = readFileSync(csvPath, 'utf-8')
 
     const records = parse(content, {
@@ -94,13 +89,20 @@ export async function POST() {
     const index = client.index(PINECONE_INDEX)
     const embeddings = new PineconeEmbeddings({ model: EMBEDDING_MODEL })
 
-    // 기존 벡터 전체 삭제 후 재업로드 (중복 방지)
-    await index.deleteAll()
+    // recipe namespace 내 기존 벡터 삭제 후 재업로드 (처음 생성 시 404 무시)
+    try {
+      await index.namespace(RECIPE_NAMESPACE).deleteAll()
+    } catch {
+      // namespace가 아직 없으면 404 — 무시하고 계속 진행
+    }
 
     const batchSize = 96
     for (let i = 0; i < docs.length; i += batchSize) {
       const batch = docs.slice(i, i + batchSize)
-      await PineconeStore.fromDocuments(batch, embeddings, { pineconeIndex: index })
+      await PineconeStore.fromDocuments(batch, embeddings, {
+        pineconeIndex: index,
+        namespace: RECIPE_NAMESPACE,
+      })
     }
 
     // 2. Supabase recipes upsert (user_email null = 공용 카탈로그)
@@ -137,4 +139,20 @@ export async function POST() {
     const message = error instanceof Error ? error.message : '인덱싱 중 오류가 발생했습니다'
     return NextResponse.json({ error: message }, { status: 500 })
   }
+}
+
+async function withAuth(handler: () => Promise<Response>) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
+  }
+  return handler()
+}
+
+export async function GET() {
+  return withAuth(handleIndex)
+}
+
+export async function POST() {
+  return withAuth(handleIndex)
 }

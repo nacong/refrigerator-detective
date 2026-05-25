@@ -59,15 +59,17 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
         <div className="max-w-[75%] flex flex-col items-end gap-1.5">
           {/* 선택된 재료 칩 */}
           {message.selectedIngredients && message.selectedIngredients.length > 0 && (
-            <div className="flex flex-wrap justify-end gap-1">
-              {message.selectedIngredients.map((name) => (
-                <span
-                  key={name}
-                  className="text-[11px] font-medium bg-[#E8F9F1] text-[#13AF70] px-2 py-0.5 rounded-full"
-                >
-                  {name}
-                </span>
-              ))}
+            <div className="relative bg-[#E8F9F1] rounded-2xl rounded-br-[4px] px-3 py-2">
+              <div className="flex flex-wrap justify-end gap-1">
+                {message.selectedIngredients.map((name) => (
+                  <span
+                    key={name}
+                    className="text-[11px] font-medium text-[#13AF70]"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
           {/* 메시지 버블 */}
@@ -86,7 +88,7 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
         {/* 냉탐이 아바타 */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/images/character.jpg"
+          src="/images/detective_frontview.png"
           alt="냉탐이"
           width={44}
           height={44}

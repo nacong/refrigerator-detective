@@ -11,3 +11,4 @@ export function getPineconeClient(): Pinecone {
 
 export const PINECONE_INDEX = 'refrigerator-detective'
 export const EMBEDDING_MODEL = 'llama-text-embed-v2'
+export const RECIPE_NAMESPACE = 'recipe'

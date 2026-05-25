@@ -10,14 +10,23 @@ export default function IngredientChip({ ingredient, onClick }: IngredientChipPr
   return (
     <button
       onClick={onClick}
-      className="flex-shrink-0 flex flex-col items-center gap-2 bg-white border border-gray-200 rounded-2xl w-[120px] active:scale-95 transition-transform"
-      style={{ padding: '18px 12px 14px' }}
+      className="flex-shrink-0 bg-white border border-gray-200 rounded-xl px-2 pt-2 pb-2.5 flex flex-col items-center gap-1.5 w-[88px] active:scale-95 transition-transform"
     >
-      <span className="text-[34px] leading-none">{ingredient.emoji}</span>
-      <span className="text-[13px] font-medium text-gray-700 truncate w-full text-center mt-0.5">
-        {ingredient.name}
-      </span>
-      <ExpiryBadge expiryDate={ingredient.expiryDate} size="sm" />
+      {/* D-day 뱃지 — 좌상단 */}
+      <div className="w-full flex justify-start">
+        <ExpiryBadge expiryDate={ingredient.expiryDate} size="sm" />
+      </div>
+
+      {/* 이모지 */}
+      <span className="text-[32px] leading-none">{ingredient.emoji}</span>
+
+      {/* 재료명 + 수량 */}
+      <div className="flex items-baseline justify-center gap-1 w-full">
+        <p className="text-[12px] font-bold text-gray-900 truncate">{ingredient.name}</p>
+        {ingredient.quantity && (
+          <span className="text-[12px] font-bold text-gray-900 flex-shrink-0">{ingredient.quantity}</span>
+        )}
+      </div>
     </button>
   )
 }

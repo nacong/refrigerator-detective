@@ -1,6 +1,6 @@
 import { PineconeStore } from '@langchain/pinecone'
 import { PineconeEmbeddings } from '@langchain/pinecone'
-import { getPineconeClient, PINECONE_INDEX, EMBEDDING_MODEL } from './pinecone'
+import { getPineconeClient, PINECONE_INDEX, EMBEDDING_MODEL, RECIPE_NAMESPACE } from './pinecone'
 
 export async function searchRecipes(query: string, k = 5) {
   const client = getPineconeClient()
@@ -9,6 +9,7 @@ export async function searchRecipes(query: string, k = 5) {
 
   const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
     pineconeIndex: index,
+    namespace: RECIPE_NAMESPACE,
   })
 
   return vectorStore.similaritySearch(query, k)

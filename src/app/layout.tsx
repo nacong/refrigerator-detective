@@ -1,9 +1,14 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 import Providers from '@/components/layout/Providers'
 
-const inter = Inter({ subsets: ['latin'] })
+const pretendard = localFont({
+  src: '../fonts/pretendard/PretendardVariable.woff2',
+  display: 'swap',
+  weight: '45 920',
+  variable: '--font-pretendard',
+})
 
 export const metadata: Metadata = {
   title: '냉장고 탐정',
@@ -24,8 +29,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ko">
-      <body className={inter.className}>
+    <html lang="ko" className={pretendard.variable}>
+      <body className={pretendard.className}>
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -132,7 +132,7 @@ export default function TutorialStep1Page() {
                 border-t-[10px] border-t-[#E8F9F1]" />
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/character.jpg" alt="냉탐이" className="w-24 h-24 rounded-full object-cover" />
+            <img src="/images/detective_frontview.png" alt="냉탐이" className="w-24 h-24 object-contain" />
           </div>
 
           <div className="bg-gray-50 rounded-2xl p-5">
@@ -150,7 +150,7 @@ export default function TutorialStep1Page() {
       {phase === 'analyzing' && (
         <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/character.jpg" alt="냉탐이" className="w-24 h-24 rounded-full object-cover" />
+          <img src="/images/detective_frontview.png" alt="냉탐이" className="w-24 h-24 object-contain" />
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-[#13AF70] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-[15px] font-semibold text-gray-700">열심히 탐색 중이에요!</p>
@@ -164,7 +164,7 @@ export default function TutorialStep1Page() {
         <>
           <div className="flex items-end gap-3 px-4 pt-3 pb-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/character.jpg" alt="냉탐이" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+            <img src="/images/detective_frontview.png" alt="냉탐이" className="w-10 h-10 object-contain flex-shrink-0" />
             <div className="bg-[#E8F9F1] border border-[#13AF70]/20 rounded-2xl rounded-bl-[4px] px-4 py-3">
               <p className="text-[13px] text-gray-700 leading-relaxed">
                 찾았어요! 유통기한도 입력해주면<br />

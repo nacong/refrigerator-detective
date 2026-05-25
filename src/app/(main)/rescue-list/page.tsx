@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import MobileContainer from '@/components/layout/MobileContainer'
+import BottomNavigation from '@/components/BottomNavigation'
 import ExpiryBadge from '@/components/ui/ExpiryBadge'
 import { useIngredients, useDeleteIngredient } from '@/hooks/useIngredients'
 import type { Ingredient } from '@/types'
@@ -22,27 +23,14 @@ export default function RescueListPage() {
   }
 
   return (
-    <MobileContainer>
+    <MobileContainer fullHeight>
       {/* 헤더 */}
-      <header className="flex items-center gap-3 px-4 safe-top pt-4 pb-3 border-b border-gray-100">
-        <button
-          onClick={() => router.back()}
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
-          aria-label="뒤로가기"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M15 18l-6-6 6-6" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <h1 className="text-base font-bold text-gray-800">나의 식재료</h1>
+      <header className="px-4 pb-3 border-b border-gray-100" style={{ paddingTop: 'max(32px, calc(env(safe-area-inset-top) + 16px))' }}>
+        <h1 className="text-[22px] font-bold text-gray-900">나의 식재료</h1>
       </header>
 
       {/* 콘텐츠 */}
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 no-scrollbar">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-500">냉장고 식재료 목록</p>
-        </div>
-
         {/* 로딩 상태 */}
         {isLoading ? (
           <div className="grid grid-cols-3 gap-2">
@@ -64,9 +52,9 @@ export default function RescueListPage() {
 
           {/* 식재료 추가 카드 */}
           <button
-            onClick={() => router.push('/ai-recognition/step2?from=rescue-list')}
+            onClick={() => router.push('/ai-recognition?from=rescue-list')}
             className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl active:bg-gray-50 transition-colors"
-            style={{ minHeight: 110 }}
+            style={{ minHeight: 100 }}
           >
             <span className="text-xl text-gray-300 font-light">+</span>
             <span className="text-xs text-gray-400 font-medium">식재료 추가</span>
@@ -75,16 +63,7 @@ export default function RescueListPage() {
         )}
       </div>
 
-      {/* 하단 고정 버튼 */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-white border-t border-gray-100 safe-bottom">
-        <button
-          onClick={() => router.push('/ai-recognition/step2?from=rescue-list')}
-          className="w-full bg-[#13AF70] text-white font-semibold py-4 rounded-2xl active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-        >
-          <span>📸</span>
-          <span>AI로 식재료 인식하기</span>
-        </button>
-      </div>
+      <BottomNavigation active="fridge" />
     </MobileContainer>
   )
 }
@@ -98,31 +77,27 @@ function IngredientCard({
   onDelete: () => void
 }) {
   return (
-    <div className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden" style={{ minHeight: 110 }}>
-      {/* D-day 뱃지 — 좌상단 */}
-      <div className="absolute top-2 left-2">
+    <div className="relative bg-white border border-gray-200 rounded-xl px-2 pt-2 pb-2.5 flex flex-col items-center gap-1.5" style={{ minHeight: 100 }}>
+      {/* 상단: D-day 뱃지(좌) + 삭제(우) */}
+      <div className="w-full flex items-center justify-between">
         <ExpiryBadge expiryDate={ingredient.expiryDate} size="sm" />
+        <button
+          onClick={onDelete}
+          className="w-4 h-4 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] active:bg-red-100 active:text-red-400"
+          aria-label={`${ingredient.name} 삭제`}
+        >
+          ✕
+        </button>
       </div>
-
-      {/* 삭제 버튼 — 우상단 */}
-      <button
-        onClick={onDelete}
-        className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[10px] active:bg-red-100 active:text-red-400"
-        aria-label={`${ingredient.name} 삭제`}
-      >
-        ✕
-      </button>
 
       {/* 이모지 */}
-      <div className="flex justify-center mt-8 mb-1">
-        <span className="text-[36px] leading-none">{ingredient.emoji}</span>
-      </div>
+      <span className="text-[32px] leading-none">{ingredient.emoji}</span>
 
-      {/* 이름 + 수량 한 줄 */}
-      <div className="flex items-baseline justify-center gap-1 px-2 pb-3">
-        <span className="text-[12px] font-semibold text-gray-700 truncate">{ingredient.name}</span>
+      {/* 재료명 + 수량 */}
+      <div className="flex items-baseline justify-center gap-1 w-full">
+        <p className="text-[12px] font-bold text-gray-900 truncate">{ingredient.name}</p>
         {ingredient.quantity && (
-          <span className="text-[11px] text-gray-400 flex-shrink-0">{ingredient.quantity}</span>
+          <span className="text-[12px] font-bold text-gray-900 flex-shrink-0">{ingredient.quantity}</span>
         )}
       </div>
     </div>

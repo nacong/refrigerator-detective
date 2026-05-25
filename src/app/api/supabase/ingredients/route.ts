@@ -22,7 +22,7 @@ export async function GET() {
 
   const supabase = getSupabaseAdmin()
   const { data, error } = await supabase
-    .from('ingredients')
+    .from('my_ingredients')
     .select('*')
     .eq('user_email', session.user.email)
     .order('expiry_date', { ascending: true })
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin()
 
   const { data, error } = await supabase
-    .from('ingredients')
+    .from('my_ingredients')
     .insert({
       name: body.name,
       emoji: body.emoji,
@@ -78,7 +78,7 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = getSupabaseAdmin()
   const { error } = await supabase
-    .from('ingredients')
+    .from('my_ingredients')
     .delete()
     .eq('id', id)
     .eq('user_email', session.user.email)

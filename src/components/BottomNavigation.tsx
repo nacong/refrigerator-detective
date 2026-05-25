@@ -16,8 +16,8 @@ interface BottomNavigationProps {
 const ROUTES: Record<NavKey, string> = {
   home: '/',
   fridge: '/rescue-list',
-  camera: '/ai-recognition/step1',
-  recipe: '/recipe',
+  camera: '/ai-recognition',
+  recipe: '/cooking-history',
   mypage: '/settings',
 }
 
@@ -25,7 +25,7 @@ function inferActive(pathname: string | null): NavKey {
   if (!pathname || pathname === '/') return 'home'
   if (pathname.startsWith('/rescue-list')) return 'fridge'
   if (pathname.startsWith('/ai-recognition')) return 'camera'
-  if (pathname.startsWith('/recipe') || pathname.startsWith('/cooking')) return 'recipe'
+  if (pathname.startsWith('/cooking-history')) return 'recipe'
   if (pathname.startsWith('/settings') || pathname.startsWith('/mypage')) return 'mypage'
   return 'home'
 }

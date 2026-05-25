@@ -6,7 +6,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export const dynamic = 'force-dynamic'
 
-// 레시피 관련 키워드 — 이 중 하나라도 포함되면 Pinecone 검색 + 카드 표시
 const RECIPE_KEYWORDS = [
   '레시피', '요리', '만들', '먹', '추천', '해먹', '음식', '반찬', '국', '찌개',
   '볶음', '구이', '조림', '비빔', '밥', '면', '파스타', '카레', '피자', '빵',
@@ -65,12 +64,14 @@ export async function POST(req: NextRequest) {
   const ingredientMention = ingredientText || message
   const isRecipe = isRecipeIntent(message, selectedIngredients ?? [])
 
-  // 시스템 프롬프트 — 인텐트별 분기
   const systemPrompt = isRecipe
     ? `당신은 냉장고 탐정 "냉탐이"입니다.
-레시피 설명, 조리 방법은 쓰지 마세요. 아래 형식 한 문장만 쓰세요.
-안녕하세요! 냉장고 탐정 냉탐이입니다. 가지고 계신 **{재료명}**를 활용해 만들 수 있는 맛있는 레시피를 추천해 드릴게요!
-{재료명} 자리에는 사용자가 언급한 재료를 자연스럽게 넣고, 재료를 특정하기 어려우면 "재료들"이라고 쓰세요.`
+레시피 목록은 따로 카드로 보여드리니 레시피 설명·조리 방법은 쓰지 마세요.
+사용자의 요청을 자연스럽게 반영한 한 문장 인사만 쓰세요. 예시:
+- "달달한 디저트 추천" → "안녕하세요! 달달한 디저트 레시피를 찾아드릴게요!"
+- "김치로 만들 수 있는 요리" → "안녕하세요! 김치를 활용한 맛있는 레시피를 추천해 드릴게요!"
+- 재료 선택 시 → "안녕하세요! 선택하신 재료로 만들 수 있는 레시피를 찾아드릴게요!"
+존댓말 사용.`
     : `당신은 냉장고 탐정 "냉탐이"입니다.
 냉탐이는 가지고 있는 재료를 바탕으로 요리하고 싶어지는 레시피를 추천해요.
 간결하게 답변하세요. 존댓말을 사용하세요.`
@@ -94,19 +95,27 @@ export async function POST(req: NextRequest) {
     systemInstruction: systemPrompt,
   })
 
-  // ─── Pinecone 검색 + LLM 스트림 시작을 병렬 실행 ────────────
   const searchQuery = [message, ingredientText].filter(Boolean).join(' ')
 
-  const [pineconeResults, llmResult] = await Promise.all([
-    isRecipe
-      ? searchRecipes(searchQuery, 5).catch(() => [])
-      : Promise.resolve([]),
-    model.generateContentStream({ contents }).catch((err) => { throw err }),
-  ])
+  let recipeCards: RecipeCard[] = []
+  let llmResult: Awaited<ReturnType<typeof model.generateContentStream>>
 
-  const recipeCards: RecipeCard[] = isRecipe ? docsToCards(pineconeResults) : []
+  try {
+    const [pineconeResults, stream] = await Promise.all([
+      isRecipe
+        ? searchRecipes(searchQuery, 5)
+        : Promise.resolve([]),
+      model.generateContentStream({ contents }),
+    ])
+    recipeCards = isRecipe ? docsToCards(pineconeResults) : []
+    console.log('[pinecone] query:', searchQuery, '| results:', pineconeResults.length, '| cards:', recipeCards.length)
+    llmResult = stream
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[claude route init error]', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 
-  // ─── 스트리밍 응답 ────────────────────────────────────────────
   const encoder = new TextEncoder()
   const readable = new ReadableStream({
     async start(controller) {
@@ -118,7 +127,6 @@ export async function POST(req: NextRequest) {
         controller.close()
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        console.error('[claude route error]', msg)
         controller.enqueue(
           encoder.encode(
             msg.includes('503')

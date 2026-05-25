@@ -24,7 +24,7 @@ export default function DetectiveOfficeSection({
       type="button"
       onClick={onClick}
       aria-label="냉장고 탐정에게 레시피 추천 요청하기"
-      className="do-section group block w-full h-full text-left relative overflow-hidden active:scale-[0.995] transition-transform"
+      className="do-section group block w-full h-full text-left relative overflow-hidden"
     >
       {/* 배경 — 디텍티브 오피스 */}
       <span
@@ -88,7 +88,7 @@ export default function DetectiveOfficeSection({
         <img
           src={characterSrc}
           alt="냉탐이"
-          className="w-full h-full object-contain animate-do-bob transition-transform group-active:translate-y-0.5"
+          className="w-full h-full object-contain animate-do-bob"
           draggable={false}
         />
         {/* 그림자 */}
