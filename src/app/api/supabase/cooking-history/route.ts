@@ -23,7 +23,7 @@ export async function GET() {
   if (!history || history.length === 0) return NextResponse.json([])
 
   // recipe_name으로 db_recipes 일괄 조회
-  const names = [...new Set(history.map((h) => h.recipe_name).filter(Boolean))] as string[]
+  const names = Array.from(new Set(history.map((h) => h.recipe_name).filter(Boolean))) as string[]
   const recipeMap: Record<string, {
     cook_time_minutes: number
     image_url: string
