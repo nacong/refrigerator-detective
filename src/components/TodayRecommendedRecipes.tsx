@@ -74,8 +74,6 @@ export default function TodayRecommendedRecipes({
       .slice(0, 3)
   }, [recipes, fridge, expiring])
 
-  if (!isLoading && ranked.length === 0) return null
-
   return (
     <section className="mb-5">
       <div className="px-4 mb-3">
@@ -83,6 +81,21 @@ export default function TodayRecommendedRecipes({
       </div>
 
       <div className="flex gap-3 px-4 overflow-x-auto no-scrollbar pb-1">
+        {!isLoading && ranked.length === 0 && (
+          <div className="flex gap-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex-shrink-0 w-[148px] rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
+                <div className="w-full h-[100px] bg-gray-100 flex items-center justify-center">
+                  <span className="text-[32px] opacity-30">🍳</span>
+                </div>
+                <div className="px-2.5 pt-2 pb-2.5 space-y-2">
+                  <div className="h-3 bg-gray-100 rounded-full w-3/4" />
+                  <div className="h-2.5 bg-gray-100 rounded-full w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {isLoading && [1, 2, 3].map((i) => (
           <div key={i} className="flex-shrink-0 w-[148px] rounded-2xl overflow-hidden bg-gray-100 animate-pulse">
             <div className="w-full h-[100px] bg-gray-200" />
