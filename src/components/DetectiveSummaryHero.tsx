@@ -141,7 +141,7 @@ export default function DetectiveSummaryHero({
             />
           </div>
 
-          <div className="relative flex-1 min-w-0 bg-white rounded-2xl border border-[#E5E7EB] px-3.5 py-3 shadow-sm self-center">
+          <div className="relative flex-1 min-w-0 bg-white rounded-2xl border border-gray-200 px-3.5 py-3 self-center">
             {/* 말풍선 꼬리 */}
             <span
               aria-hidden

@@ -14,59 +14,49 @@ export async function GET() {
   const supabase = getSupabaseAdmin()
 
   const { data: history, error } = await supabase
-    .from('cooking_history')
-    .select('id, user_email, recipe_id, cooked_at, cook_time')
+    .from('my_history')
+    .select('id, user_email, recipe_id, recipe_name, cooked_at, cook_time')
     .eq('user_email', session.user.email)
     .order('cooked_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!history || history.length === 0) return NextResponse.json([])
 
-  const rows = history ?? []
-  if (rows.length === 0) return NextResponse.json([])
-
-  // recipe_id 로 recipes 조인
-  const recipeIds = Array.from(
-    new Set(rows.map((h) => h.recipe_id).filter(Boolean))
-  )
-
-  const recipeMap: Record<string, {
-    name: string
-    thumbnail_url: string
-    cost_per_serving: number
-    ingredients: string[]
-    steps: string[]
+  // recipe_name으로 db_recipes 일괄 조회
+  const names = [...new Set(history.map((h) => h.recipe_name).filter(Boolean))] as string[]
+  let recipeMap: Record<string, {
+    cook_time_minutes: number
+    image_url: string
+    ingredient_names: string[]
+    steps: Array<{ step: number; description: string }>
   }> = {}
 
-  if (recipeIds.length > 0) {
-    const { data: recipeRows } = await supabase
-      .from('recipes')
-      .select('id, name, thumbnail_url, cost_per_serving, ingredients, steps')
-      .in('id', recipeIds)
+  if (names.length > 0) {
+    const { data: recipes } = await supabase
+      .from('db_recipes')
+      .select('name, cook_time_minutes, image_url, ingredient_names, steps')
+      .in('name', names)
 
-    for (const r of recipeRows ?? []) {
-      recipeMap[r.id] = {
-        name: r.name ?? '',
-        thumbnail_url: r.thumbnail_url ?? '',
-        cost_per_serving: r.cost_per_serving ?? 0,
-        ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
-        steps: Array.isArray(r.steps) ? r.steps : [],
-      }
+    for (const r of recipes ?? []) {
+      recipeMap[r.name] = r
     }
   }
 
-  const result = rows.map((h) => ({
-    id: h.id,
-    user_email: h.user_email,
-    recipe_id: h.recipe_id,
-    cooked_at: h.cooked_at,
-    cook_time: (h as { cook_time?: number }).cook_time ?? 0,
-    // recipes 조인
-    recipe_name: recipeMap[h.recipe_id]?.name ?? '',
-    thumbnail_url: recipeMap[h.recipe_id]?.thumbnail_url ?? '',
-    cost_per_serving: recipeMap[h.recipe_id]?.cost_per_serving ?? 0,
-    ingredients: recipeMap[h.recipe_id]?.ingredients ?? [],
-    steps: recipeMap[h.recipe_id]?.steps ?? [],
-  }))
+  const result = history.map((h) => {
+    const r = h.recipe_name ? recipeMap[h.recipe_name] : null
+    const steps = (r?.steps ?? []) as Array<{ step: number; description: string }>
+
+    return {
+      id: h.id,
+      user_email: h.user_email,
+      cooked_at: h.cooked_at,
+      recipe_name: h.recipe_name ?? '',
+      cook_time: h.cook_time > 0 ? h.cook_time : (r?.cook_time_minutes ?? 0),
+      thumbnail_url: r?.image_url ?? '',
+      ingredients: r?.ingredient_names ?? [],
+      steps: steps.map((s) => s.description),
+    }
+  })
 
   return NextResponse.json(result)
 }
@@ -80,31 +70,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const supabase = getSupabaseAdmin()
 
-  // recipeName 으로 recipes 에서 id, cook_time 조회
-  let recipeId: string | null = null
-  let cookTime: number = body.cookTime ?? 0
-
-  if (body.recipeName) {
-    const { data: recipe } = await supabase
-      .from('recipes')
-      .select('id, cook_time')
-      .eq('name', body.recipeName)
-      .limit(1)
-      .maybeSingle()
-
-    if (recipe) {
-      recipeId = recipe.id
-      cookTime = recipe.cook_time ?? cookTime
-    }
-  }
-
   const { data, error } = await supabase
-    .from('cooking_history')
+    .from('my_history')
     .insert({
       user_email: session.user.email,
-      recipe_id: recipeId,
+      recipe_name: body.recipeName ?? '',
       cooked_at: new Date().toISOString(),
-      cook_time: cookTime,
+      cook_time: body.cookTime ?? 0,
     })
     .select()
     .single()

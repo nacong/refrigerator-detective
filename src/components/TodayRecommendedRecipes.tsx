@@ -21,49 +21,11 @@ export interface RecommendedRecipe {
 interface TodayRecommendedRecipesProps {
   fridgeIngredients?: Ingredient[]
   recipes?: RecommendedRecipe[]
+  isLoading?: boolean
   expiringSoonIngredients?: Ingredient[]
   onClickRecipe?: (recipe: RecommendedRecipe) => void
   onClickViewMore?: () => void
 }
-
-export const mockRecommendedRecipes: RecommendedRecipe[] = [
-  {
-    id: 'r1',
-    name: '우유 양파 크림파스타',
-    emoji: '🍝',
-    requiredIngredients: ['우유', '양파', '면', '버터'],
-    cookingTime: 15,
-    servings: 1,
-    difficulty: '쉬움',
-  },
-  {
-    id: 'r2',
-    name: '대파 계란볶음밥',
-    emoji: '🍳',
-    requiredIngredients: ['대파', '계란', '밥', '간장'],
-    cookingTime: 30,
-    servings: 1,
-    difficulty: '쉬움',
-  },
-  {
-    id: 'r3',
-    name: '두부 계란국',
-    emoji: '🍲',
-    requiredIngredients: ['두부', '계란', '대파', '국간장'],
-    cookingTime: 20,
-    servings: 2,
-    difficulty: '쉬움',
-  },
-  {
-    id: 'r4',
-    name: '양파 채소볶음',
-    emoji: '🥘',
-    requiredIngredients: ['양파', '당근', '간장'],
-    cookingTime: 10,
-    servings: 1,
-    difficulty: '쉬움',
-  },
-]
 
 function daysUntil(dateStr: string): number {
   if (!dateStr) return Infinity
@@ -77,12 +39,13 @@ function daysUntil(dateStr: string): number {
 export default function TodayRecommendedRecipes({
   fridgeIngredients = [],
   recipes,
+  isLoading = false,
   expiringSoonIngredients,
   onClickRecipe,
   onClickViewMore,
 }: TodayRecommendedRecipesProps) {
   const fridge = fridgeIngredients
-  const source = recipes && recipes.length > 0 ? recipes : mockRecommendedRecipes
+  const source = recipes ?? []
 
   const expiring = useMemo(() => {
     if (expiringSoonIngredients) return expiringSoonIngredients
@@ -109,31 +72,34 @@ export default function TodayRecommendedRecipes({
         if (b._exp !== a._exp) return b._exp - a._exp
         return b._matched.length - a._matched.length
       })
-      .slice(0, 6)
+      .slice(0, 3)
   }, [source, fridge, expiring])
 
-  if (ranked.length === 0) return null
+  if (!isLoading && ranked.length === 0) return null
 
   return (
     <section className="mb-5">
-      <div className="flex items-center justify-between px-4 mb-3">
+      <div className="px-4 mb-3">
         <h2 className="text-[16px] font-bold text-gray-800">오늘의 추천 레시피</h2>
-        <button
-          onClick={onClickViewMore}
-          className="text-[13px] text-gray-400 font-medium flex items-center gap-0.5"
-        >
-          더보기 <span aria-hidden>›</span>
-        </button>
       </div>
 
       <div className="flex gap-3 px-4 overflow-x-auto no-scrollbar pb-1">
+        {isLoading && [1, 2, 3].map((i) => (
+          <div key={i} className="flex-shrink-0 w-[148px] rounded-2xl overflow-hidden bg-gray-100 animate-pulse">
+            <div className="w-full h-[100px] bg-gray-200" />
+            <div className="px-2.5 pt-2 pb-2.5 space-y-2">
+              <div className="h-3 bg-gray-200 rounded-full w-3/4" />
+              <div className="h-2.5 bg-gray-200 rounded-full w-1/2" />
+            </div>
+          </div>
+        ))}
         {ranked.map((recipe) => {
           const matched = (recipe as RecommendedRecipe & { _matched?: string[] })._matched ?? []
           return (
             <button
               key={recipe.id}
               onClick={() => onClickRecipe?.(recipe)}
-              className="flex-shrink-0 w-[148px] bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm active:scale-[0.98] transition-transform text-left"
+              className="flex-shrink-0 w-[148px] bg-white border border-gray-200 rounded-2xl overflow-hidden active:scale-[0.98] transition-transform text-left"
             >
               {/* 썸네일 */}
               <div className="relative w-full h-[100px] bg-gradient-to-br from-[#F9F5FF] to-[#ECFDF5] flex items-center justify-center">

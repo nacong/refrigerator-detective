@@ -11,6 +11,7 @@ interface AppState {
   setCapturedImage: (image: string | null, mime: string | null) => void
   setRecognizedIngredients: (ingredients: Partial<Ingredient>[]) => void
   updateRecognizedIngredient: (index: number, updates: Partial<Ingredient>) => void
+  removeRecognizedIngredient: (index: number) => void
   addChatMessage: (message: ChatMessage) => void
   clearChatMessages: () => void
   setSelectedRecipe: (recipe: ChatRecipe | null) => void
@@ -35,6 +36,11 @@ export const useAppStore = create<AppState>((set) => ({
       updated[index] = { ...updated[index], ...updates }
       return { recognizedIngredients: updated }
     }),
+
+  removeRecognizedIngredient: (index) =>
+    set((state) => ({
+      recognizedIngredients: state.recognizedIngredients.filter((_, i) => i !== index),
+    })),
 
   addChatMessage: (message) =>
     set((state) => ({ chatMessages: [...state.chatMessages, message] })),

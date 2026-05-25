@@ -15,7 +15,7 @@ export default function LoginPage() {
       <div className="safe-top" />
 
       {/* 콘텐츠 영역 - 세로 중앙 정렬 */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 pb-12">
+      <div className="flex-1 flex flex-col items-center justify-center px-8 pb-12 pt-16">
         {/* 캐릭터 아이콘 및 앱 이름 */}
         <div className="flex flex-col items-center mb-8">
           {/* 탐정 캐릭터 이미지 */}
@@ -23,11 +23,10 @@ export default function LoginPage() {
           <img
             src="/images/detective_ingredient.png"
             alt="냉탐이"
-            className="w-32 h-32 object-contain mb-4"
+            className="w-52 h-52 object-contain mb-4"
           />
 
           <h1 className="text-2xl font-bold text-gray-800 mb-1">냉장고 탐정</h1>
-          <p className="text-xs text-gray-400 font-medium tracking-widest">REFRIGERATOR DETECTIVE</p>
         </div>
 
         {/* 슬로건 */}
@@ -40,18 +39,11 @@ export default function LoginPage() {
       </div>
 
       {/* 하단 로그인 영역 */}
-      <div className="px-6 pb-10 safe-bottom">
-        {/* 구분선 */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-xs text-gray-400">간편 로그인</span>
-          <div className="flex-1 h-px bg-gray-200" />
-        </div>
-
+      <div className="px-6 pb-10 safe-bottom mb-8">
         {/* 구글 로그인 버튼 */}
         <button
           onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 rounded-2xl py-4 shadow-sm active:scale-[0.98] transition-transform"
+          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 rounded-2xl py-4 active:scale-[0.98] transition-transform"
         >
           {/* Google 로고 SVG */}
           <svg width="20" height="20" viewBox="0 0 24 24">
