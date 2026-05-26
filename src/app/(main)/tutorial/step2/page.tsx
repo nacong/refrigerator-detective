@@ -87,7 +87,7 @@ export default function TutorialStep2Page() {
             {/* 냉탐이 마무리 말풍선 */}
             <div className="flex items-end gap-3 mb-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/character.jpg" alt="냉탐이" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+              <img src="/images/detective_check.png" alt="냉탐이" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
               <div className="bg-[#E8F9F1] border border-[#13AF70]/20 rounded-2xl rounded-bl-[4px] px-4 py-3">
                 <p className="text-[13px] text-gray-700 leading-relaxed">
                   이제 함께 건강한 식생활을<br />

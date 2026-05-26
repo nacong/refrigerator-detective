@@ -24,6 +24,10 @@ export default function SettingsPage() {
         setIsDeleting(false)
         return
       }
+      // 탈퇴 후 재가입 시 tutorial이 정상 동작하도록 visited 키 제거
+      if (session?.user?.email) {
+        localStorage.removeItem(`visited_${session.user.email}`)
+      }
       await signOut({ callbackUrl: '/login' })
     } catch {
       alert('탈퇴 처리 중 오류가 발생했습니다.')

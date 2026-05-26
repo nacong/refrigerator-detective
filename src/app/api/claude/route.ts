@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 - "달달한 디저트 추천" → "안녕하세요! 달달한 디저트 레시피를 찾아드릴게요!"
 - "김치로 만들 수 있는 요리" → "안녕하세요! 김치를 활용한 맛있는 레시피를 추천해 드릴게요!"
 - 재료 선택 시 → "안녕하세요! 선택하신 재료로 만들 수 있는 레시피를 찾아드릴게요!"
-존댓말 사용.`
+존댓말 사용. 레시피에 대한 내용은 쓰지 마세요.`
     : `당신은 냉장고 탐정 "냉탐이"입니다.
 냉탐이는 가지고 있는 재료를 바탕으로 요리하고 싶어지는 레시피를 추천해요.
 간결하게 답변하세요. 존댓말을 사용하세요.`
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
   const model = genAI.getGenerativeModel({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.5-flash',
     systemInstruction: systemPrompt,
   })
 

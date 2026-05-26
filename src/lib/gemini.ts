@@ -4,7 +4,7 @@ import type { Ingredient } from '@/types'
 // 이미지에서 식재료를 인식하는 함수 (런타임에만 클라이언트 생성)
 export async function recognizeIngredients(imageBase64: string, mimeType: string): Promise<Partial<Ingredient>[]> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
   const prompt = `이 냉장고 사진에서 보이는 식재료들을 인식해주세요.
 각 식재료에 대해 다음 형식의 JSON 배열로 응답해주세요:
