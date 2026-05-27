@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data: history, error } = await supabase
     .from('my_history')
-    .select('id, user_email, db_recipe_id, recipe_name, cooked_at, cook_time, photo_url')
+    .select('id, user_email, db_recipe_id, recipe_name, cooked_at, cook_time, photo_url, rating')
     .eq('user_email', session.user.email)
     .order('cooked_at', { ascending: false })
 
@@ -74,6 +74,7 @@ export async function GET() {
       cooked_at: h.cooked_at,
       recipe_name: h.recipe_name ?? r?.name ?? '',
       cook_time: h.cook_time > 0 ? h.cook_time : (r?.cook_time_minutes ?? 0),
+      rating: (h as { rating?: number | null }).rating ?? null,
       // 사용자 완성 사진 우선, 없으면 db_recipes 이미지
       thumbnail_url: h.photo_url || r?.image_url || '',
       photo_url: h.photo_url || '',
@@ -172,6 +173,7 @@ export async function POST(req: NextRequest) {
       cook_time: body.cookTime ?? 0,
       db_recipe_id: dbRecipeId,
       photo_url: body.photoUrl ?? null,
+      rating: body.rating ?? null,
     })
     .select()
     .single()
