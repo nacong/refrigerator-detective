@@ -18,6 +18,14 @@ export default function CookingProcessPage() {
   const [completedTimes, setCompletedTimes] = useState<Record<number, string>>({})
   const [isDone, setIsDone] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [actualCookTime, setActualCookTime] = useState(0)
+
+  // 사진 관련
+  const cameraRef = useRef<HTMLInputElement>(null)
+  const galleryRef = useRef<HTMLInputElement>(null)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number>(Date.now())
 
@@ -32,28 +40,94 @@ export default function CookingProcessPage() {
     if (currentIndex < totalSteps - 1) {
       setCurrentIndex((i) => i + 1)
     } else {
-      handleComplete(time)
+      // 완성 — 저장은 사진 선택 후 별도 버튼으로
+      const elapsed = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))
+      setActualCookTime(elapsed)
+      setCompletedTimes((prev) => ({ ...prev, [totalSteps - 1]: time }))
+      setIsDone(true)
     }
   }
 
-  const handleComplete = async (finalTime?: string) => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+    // input 초기화 (같은 파일 재선택 가능하게)
+    e.target.value = ''
+  }
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null)
+    setPhotoPreview(null)
+  }
+
+  const handleSave = async () => {
     setIsSaving(true)
-    const completionTime = finalTime ?? now()
-    setCompletedTimes((prev) => ({ ...prev, [totalSteps - 1]: completionTime }))
-    setIsDone(true)
-    const actualCookTime = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 60000))
     try {
-      await fetch('/api/supabase/cooking-history', {
+      let photoUrl = ''
+
+      // 사진이 선택됐으면 Storage에 업로드
+      if (photoFile) {
+        const reader = new FileReader()
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = (e) => {
+            const result = e.target?.result as string
+            resolve(result.split(',')[1]) // base64 부분만
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(photoFile)
+        })
+
+        const uploadRes = await fetch('/api/supabase/cooking-history/photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: base64, mimeType: photoFile.type }),
+        })
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          photoUrl = url
+        }
+      }
+
+      // 요리 기록 저장
+      // dbRecipeId 가 없는 AI 레시피는 recipeData 를 함께 보내서 서버에서 fallback insert
+      const saveRes = await fetch('/api/supabase/cooking-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipeName: recipe?.name ?? '',
           cookTime: actualCookTime,
+          dbRecipeId: recipe?.dbRecipeId ?? null,
+          photoUrl,
+          // dbRecipeId 가 없을 때만 전체 레시피 데이터 전송
+          recipeData: recipe?.dbRecipeId
+            ? null
+            : {
+                cookingMethod: recipe?.cookingMethod ?? '',
+                cookTimeMinutes: recipe?.cookTimeMinutes ?? 0,
+                ingredientsRaw: recipe?.ingredientsRaw ?? '',
+                steps: recipe?.steps ?? [],
+              },
         }),
       })
+
+      if (!saveRes.ok) {
+        let errMsg = `HTTP ${saveRes.status}`
+        try {
+          const json = await saveRes.json()
+          if (json?.error) errMsg = json.error
+        } catch { /* ignore parse error */ }
+        throw new Error(errMsg)
+      }
+
       queryClient.invalidateQueries({ queryKey: ['cooking-history'] })
-    } catch {
-      // 저장 실패해도 UI 유지
+      router.push('/cooking-history')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '알 수 없는 오류'
+      alert(`저장 중 오류가 발생했어요.\n${msg}`)
     } finally {
       setIsSaving(false)
     }
@@ -61,7 +135,7 @@ export default function CookingProcessPage() {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [currentIndex])
+  }, [currentIndex, isDone])
 
   if (!recipe) {
     return (
@@ -155,36 +229,109 @@ export default function CookingProcessPage() {
           )
         })}
 
-        {/* 완성 */}
+        {/* 완성 배너 */}
         {isDone && (
-          <div className="flex items-center gap-3 bg-[#F0FBF5] rounded-2xl px-4 py-3">
-            <div className="w-6 h-6 rounded-full bg-[#13AF70] flex items-center justify-center flex-shrink-0">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+          <>
+            <div ref={scrollRef} className="flex items-center gap-3 bg-[#F0FBF5] rounded-2xl px-4 py-3">
+              <div className="w-6 h-6 rounded-full bg-[#13AF70] flex items-center justify-center flex-shrink-0">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p className="text-sm font-bold text-[#0D9E63] flex-1">요리 완성! 🎉</p>
+              <span className="text-xs text-gray-400">{completedTimes[totalSteps - 1]}</span>
             </div>
-            <p className="text-sm font-bold text-[#0D9E63] flex-1">요리 완성!</p>
-            <span className="text-xs text-gray-400">{completedTimes[totalSteps - 1]}</span>
-          </div>
+
+            {/* ── 사진 촬영 섹션 ── */}
+            <div className="bg-gray-50 rounded-2xl px-4 py-4 space-y-3">
+              <p className="text-sm font-semibold text-gray-700">📸 완성 사진으로 기록해보세요</p>
+              <p className="text-xs text-gray-400">요리 기록에 사진이 표시돼요. 건너뛰어도 저장됩니다.</p>
+
+              {photoPreview ? (
+                <div className="relative rounded-xl overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photoPreview}
+                    alt="완성 사진"
+                    className="w-full object-cover rounded-xl"
+                    style={{ maxHeight: 220 }}
+                  />
+                  <button
+                    onClick={handleRemovePhoto}
+                    className="absolute top-2 right-2 w-7 h-7 bg-black/50 rounded-full flex items-center justify-center"
+                    aria-label="사진 제거"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <path d="M18 6L6 18M6 6l12 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => cameraRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 rounded-xl active:bg-gray-50 transition-colors"
+                  >
+                    <span className="text-lg">📷</span>
+                    <span className="text-xs font-medium text-gray-700">카메라</span>
+                  </button>
+                  <button
+                    onClick={() => galleryRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 rounded-xl active:bg-gray-50 transition-colors"
+                  >
+                    <span className="text-lg">🖼️</span>
+                    <span className="text-xs font-medium text-gray-700">갤러리</span>
+                  </button>
+                </div>
+              )}
+
+              {/* 숨김 파일 입력 */}
+              <input
+                ref={cameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+              <input
+                ref={galleryRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+            </div>
+          </>
         )}
       </div>
 
       {/* 하단 버튼 */}
-      <div className="flex-shrink-0 px-4 pb-8 pt-3 bg-white border-t border-gray-100">
-        {!isDone ? (
+      <div className="flex-shrink-0 px-4 pb-8 pt-3 bg-white border-t border-gray-100 safe-bottom">
+        {isDone ? (
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="w-full bg-[#13AF70] text-white font-bold py-4 rounded-2xl text-[16px] active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>저장 중...</span>
+              </>
+            ) : (
+              <>
+                <span>🗒️</span>
+                <span>{photoFile ? '사진과 함께 기록 저장' : '기록 저장하기'}</span>
+              </>
+            )}
+          </button>
+        ) : (
           <button
             onClick={handleNext}
             className="w-full bg-[#13AF70] text-white font-bold py-4 rounded-2xl text-[16px] active:scale-[0.98] transition-transform"
           >
-            {currentIndex === totalSteps - 1 ? '요리 완성!' : '다음 단계'}
-          </button>
-        ) : (
-          <button
-            onClick={() => router.back()}
-            disabled={isSaving}
-            className="w-full bg-gray-100 text-gray-700 font-bold py-4 rounded-2xl text-[16px] active:scale-[0.98] transition-transform disabled:opacity-50"
-          >
-            {isSaving ? '저장 중...' : '돌아가기'}
+            {currentIndex === totalSteps - 1 ? '요리 완성! 🎉' : '다음 단계'}
           </button>
         )}
       </div>
@@ -193,7 +340,8 @@ export default function CookingProcessPage() {
   )
 }
 
-// 진행 점
+// ── 서브 컴포넌트 ──────────────────────────────────────────────
+
 function StepDot({ label, status }: { label: string; status: 'done' | 'current' | 'pending' }) {
   return (
     <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -215,14 +363,12 @@ function StepDot({ label, status }: { label: string; status: 'done' | 'current' 
   )
 }
 
-// 연결선
 function StepLine({ active }: { active: boolean }) {
   return (
     <div className={`flex-1 h-0.5 mx-1 mb-4 rounded-full transition-colors ${active ? 'bg-[#13AF70]' : 'bg-gray-200'}`} />
   )
 }
 
-// 스텝 카드
 const StepCard = forwardRef<
   HTMLDivElement,
   {
