@@ -26,6 +26,10 @@ export default function CookingProcessPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
+  // 별점
+  const [rating, setRating] = useState<number>(0)
+  const [hoverRating, setHoverRating] = useState<number>(0)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number>(Date.now())
 
@@ -102,6 +106,7 @@ export default function CookingProcessPage() {
           cookTime: actualCookTime,
           dbRecipeId: recipe?.dbRecipeId ?? null,
           photoUrl,
+          rating: rating > 0 ? rating : null,
           // dbRecipeId 가 없을 때만 전체 레시피 데이터 전송
           recipeData: recipe?.dbRecipeId
             ? null
@@ -240,6 +245,37 @@ export default function CookingProcessPage() {
               </div>
               <p className="text-sm font-bold text-[#0D9E63] flex-1">요리 완성! 🎉</p>
               <span className="text-xs text-gray-400">{completedTimes[totalSteps - 1]}</span>
+            </div>
+
+            {/* ── 별점 섹션 ── */}
+            <div className="bg-gray-50 rounded-2xl px-4 py-4">
+              <p className="text-sm font-semibold text-gray-700 mb-3">⭐ 오늘 요리는 어땠나요?</p>
+              <div className="flex items-center justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setRating(star === rating ? 0 : star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="transition-transform active:scale-90"
+                    aria-label={`${star}점`}
+                  >
+                    <svg
+                      width="36" height="36" viewBox="0 0 24 24"
+                      fill={(hoverRating || rating) >= star ? '#FBBF24' : 'none'}
+                      stroke={(hoverRating || rating) >= star ? '#FBBF24' : '#D1D5DB'}
+                      strokeWidth="1.5"
+                    >
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+              {rating > 0 && (
+                <p className="text-center text-xs text-gray-400 mt-2">
+                  {['', '아쉬웠어요 😢', '그저 그랬어요 😐', '괜찮았어요 🙂', '맛있었어요 😋', '최고예요! 🤩'][rating]}
+                </p>
+              )}
             </div>
 
             {/* ── 사진 촬영 섹션 ── */}
