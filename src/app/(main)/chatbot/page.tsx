@@ -12,7 +12,7 @@ import type { ChatMessage } from '@/types'
 export default function ChatbotPage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { chatMessages, sendMessage, isLoading } = useChat()
+  const { chatMessages, sendMessage, sendFridgeRecipe, isLoading } = useChat()
   const { data: ingredients = [] } = useIngredients()
 
   const userName = session?.user?.name ?? '고객'
@@ -41,6 +41,16 @@ export default function ChatbotPage() {
     if (!text || isLoading) return
     setInputText('')
     await sendMessage(text, selectedIngredients)
+  }
+
+  const handleFridgeRecipe = async () => {
+    if (isLoading || ingredients.length === 0) return
+    // 선택된 재료가 있으면 그것만, 없으면 전체 재료 사용
+    const targets =
+      selectedIngredients.length > 0
+        ? selectedIngredients
+        : ingredients.map((i) => i.name)
+    await sendFridgeRecipe(targets)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -108,6 +118,23 @@ export default function ChatbotPage() {
 
       {/* 입력 영역 */}
       <div className="border-t border-gray-100 px-4 pt-2.5 pb-3 safe-bottom">
+        {/* 냉털 레시피 버튼 */}
+        {ingredients.length > 0 && (
+          <button
+            onClick={handleFridgeRecipe}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-2 mb-2.5 py-2.5 rounded-2xl bg-orange-50 border border-orange-200 active:bg-orange-100 disabled:opacity-40 transition-colors"
+          >
+            <span className="text-base">🧹</span>
+            <span className="text-[13px] font-semibold text-orange-600">냉털 레시피</span>
+            <span className="text-[11px] text-orange-400">
+              {selectedIngredients.length > 0
+                ? `선택 재료 ${selectedIngredients.length}개로 추천`
+                : '냉장고 재료 전부 활용'}
+            </span>
+          </button>
+        )}
+
         {/* 재료 선택 칩 — Supabase에 등록된 재료 */}
         {ingredients.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2">

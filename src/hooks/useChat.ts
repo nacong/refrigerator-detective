@@ -82,5 +82,69 @@ export function useChat() {
     }
   }
 
-  return { chatMessages, sendMessage, isLoading }
+  const sendFridgeRecipe = async (ingredients: string[]) => {
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: '🧹 냉털 레시피 추천해줘!',
+      selectedIngredients: ingredients.length > 0 ? [...ingredients] : undefined,
+      createdAt: new Date().toISOString(),
+    }
+    addChatMessage(userMessage)
+    setIsLoading(true)
+
+    try {
+      const res = await fetch('/api/gemini/fridge-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients }),
+      })
+
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      let chatRecipes: ChatMessage['chatRecipes'] = []
+      try {
+        const header = res.headers.get('X-Recipe-Cards')
+        if (header) chatRecipes = JSON.parse(decodeURIComponent(header))
+      } catch { /* ignore */ }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantContent = ''
+
+      addChatMessage({
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        chatRecipes,
+        createdAt: new Date().toISOString(),
+      })
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        assistantContent += decoder.decode(value)
+
+        useAppStore.setState((state) => {
+          const msgs = [...state.chatMessages]
+          msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], content: assistantContent }
+          return { chatMessages: msgs }
+        })
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      addChatMessage({
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: `오류: ${msg}`,
+        createdAt: new Date().toISOString(),
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return { chatMessages, sendMessage, sendFridgeRecipe, isLoading }
 }
