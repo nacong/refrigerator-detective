@@ -367,7 +367,8 @@ export default function CookingProcessPage() {
                         onClick={() =>
                           setSelectedUpdateIds((prev) => {
                             const next = new Set(prev)
-                            next.has(u.id) ? next.delete(u.id) : next.add(u.id)
+                            if (next.has(u.id)) next.delete(u.id)
+                            else next.add(u.id)
                             return next
                           })
                         }
