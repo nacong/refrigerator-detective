@@ -71,30 +71,44 @@ export default function CookingProcessPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      let photoUrl = ''
-
-      // 사진이 선택됐으면 Storage에 업로드
-      if (photoFile) {
-        const reader = new FileReader()
-        const base64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = (e) => {
-            const result = e.target?.result as string
-            resolve(result.split(',')[1]) // base64 부분만
-          }
-          reader.onerror = reject
-          reader.readAsDataURL(photoFile)
-        })
-
-        const uploadRes = await fetch('/api/supabase/cooking-history/photo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64, mimeType: photoFile.type }),
-        })
-        if (uploadRes.ok) {
+      // 사진 업로드 + Gemini 영양 추정 병렬 실행
+      const [photoResult, nutritionResult] = await Promise.allSettled([
+        // 1. 사진 업로드
+        (async () => {
+          if (!photoFile) return ''
+          const reader = new FileReader()
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = (e) => resolve((e.target?.result as string).split(',')[1])
+            reader.onerror = reject
+            reader.readAsDataURL(photoFile)
+          })
+          const uploadRes = await fetch('/api/supabase/cooking-history/photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: base64, mimeType: photoFile.type }),
+          })
+          if (!uploadRes.ok) return ''
           const { url } = await uploadRes.json()
-          photoUrl = url
-        }
-      }
+          return url as string
+        })(),
+
+        // 2. Gemini 영양 추정 (실패해도 저장은 진행)
+        (async () => {
+          const res = await fetch('/api/gemini/nutrition', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipeName: recipe?.name ?? '',
+              ingredientsRaw: recipe?.ingredientsRaw ?? '',
+            }),
+          })
+          if (!res.ok) return null
+          return res.json() as Promise<{ calories: number; protein: number; carbs: number; fat: number }>
+        })(),
+      ])
+
+      const photoUrl = photoResult.status === 'fulfilled' ? (photoResult.value ?? '') : ''
+      const nutrition = nutritionResult.status === 'fulfilled' ? nutritionResult.value : null
 
       // 요리 기록 저장
       // dbRecipeId 가 없는 AI 레시피는 recipeData 를 함께 보내서 서버에서 fallback insert
@@ -107,6 +121,7 @@ export default function CookingProcessPage() {
           dbRecipeId: recipe?.dbRecipeId ?? null,
           photoUrl,
           rating: rating > 0 ? rating : null,
+          nutrition,
           // dbRecipeId 가 없을 때만 전체 레시피 데이터 전송
           recipeData: recipe?.dbRecipeId
             ? null

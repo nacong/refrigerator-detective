@@ -32,7 +32,7 @@ export async function GET() {
 
   const { data: history, error } = await supabase
     .from('my_history')
-    .select('id, user_email, db_recipe_id, recipe_name, cooked_at, cook_time, photo_url, rating')
+    .select('id, user_email, db_recipe_id, recipe_name, cooked_at, cook_time, photo_url, rating, nutrition')
     .eq('user_email', session.user.email)
     .order('cooked_at', { ascending: false })
 
@@ -75,6 +75,7 @@ export async function GET() {
       recipe_name: h.recipe_name ?? r?.name ?? '',
       cook_time: h.cook_time > 0 ? h.cook_time : (r?.cook_time_minutes ?? 0),
       rating: (h as { rating?: number | null }).rating ?? null,
+      nutrition: (h as { nutrition?: { calories: number; protein: number; carbs: number; fat: number } | null }).nutrition ?? null,
       // 사용자 완성 사진 우선, 없으면 db_recipes 이미지
       thumbnail_url: h.photo_url || r?.image_url || '',
       photo_url: h.photo_url || '',
@@ -94,21 +95,12 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  console.log('[cooking-history POST] body:', JSON.stringify({
-    recipeName: body.recipeName,
-    cookTime: body.cookTime,
-    dbRecipeId: body.dbRecipeId,
-    hasPhoto: !!body.photoUrl,
-    hasRecipeData: !!body.recipeData,
-  }))
-
   const supabase = getSupabaseAdmin()
 
   // ── db_recipe_id 결정 (3단계 fallback) ────────────────────────
 
   // 1단계: 클라이언트가 직접 보낸 ID 사용
   let dbRecipeId: number | null = body.dbRecipeId != null ? Number(body.dbRecipeId) : null
-  if (dbRecipeId != null) console.log('[cooking-history POST] 1단계 dbRecipeId:', dbRecipeId)
 
   // 2단계: name으로 db_recipes 조회
   if (dbRecipeId == null && body.recipeName) {
@@ -119,14 +111,12 @@ export async function POST(req: NextRequest) {
       .order('id', { ascending: false }) // 최신 AI 생성본 우선
       .limit(1)
       .maybeSingle()
-    if (lookupErr) console.error('[cooking-history POST] 2단계 lookup error:', lookupErr.message)
+    if (lookupErr) console.error('[cooking-history] db_recipes lookup error:', lookupErr.message)
     dbRecipeId = data ? Number((data as { id: unknown }).id) : null
-    console.log('[cooking-history POST] 2단계 name lookup result:', dbRecipeId)
   }
 
   // 3단계: 여전히 없고 recipeData 가 있으면 (AI 생성 레시피) → db_recipes 에 직접 저장
   if (dbRecipeId == null && body.recipeName && body.recipeData) {
-    console.log('[cooking-history POST] 3단계 AI 레시피 db_recipes 저장 시도')
     const rd = body.recipeData as {
       cookingMethod?: string
       cookTimeMinutes?: number
@@ -154,15 +144,12 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (insertErr) {
-      console.error('[cooking-history POST] 3단계 db_recipes insert error:', insertErr.message, insertErr.code, insertErr.details)
+      console.error('[cooking-history] db_recipes insert error:', insertErr.message)
     } else {
       dbRecipeId = inserted ? Number((inserted as { id: unknown }).id) : null
-      console.log('[cooking-history POST] 3단계 AI 레시피 db_recipes 저장 성공:', dbRecipeId)
     }
   }
   // ──────────────────────────────────────────────────────────────
-
-  console.log('[cooking-history POST] my_history insert with db_recipe_id:', dbRecipeId)
 
   const { data, error } = await supabase
     .from('my_history')
@@ -174,14 +161,11 @@ export async function POST(req: NextRequest) {
       db_recipe_id: dbRecipeId,
       photo_url: body.photoUrl ?? null,
       rating: body.rating ?? null,
+      nutrition: body.nutrition ?? null,
     })
     .select()
     .single()
 
-  if (error) {
-    console.error('[cooking-history POST] my_history insert error:', error.message, error.code, error.details)
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-  console.log('[cooking-history POST] 저장 성공:', (data as { id?: unknown })?.id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data, { status: 201 })
 }
