@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { searchRecipes } from '@/lib/rag'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import type { ChatRecipe } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,16 +20,15 @@ function isRecipeIntent(message: string, selectedIngredients: string[]): boolean
   return RECIPE_KEYWORDS.some((k) => lower.includes(k))
 }
 
-type RecipeCard = {
+interface GeminiRecipe {
   name: string
-  cookingMethod: string
   cookTimeMinutes: number
-  ingredientsRaw: string
-  imageUrl: string
-  sourceUrl: string
+  cookingMethod: string
+  ingredientsUsed: string[]
   steps: string[]
-  dbRecipeId?: number   // db_recipes.id — cooking-history 저장 시 사용
 }
+
+type RecipeCard = ChatRecipe
 
 function docsToCards(
   results: Awaited<ReturnType<typeof searchRecipes>>,
@@ -52,7 +52,7 @@ function docsToCards(
             return match[1].split(/\d+\.\s+/).map((s) => s.trim()).filter(Boolean)
           } catch { return [] }
         })(),
-        dbRecipeId: dbIdMap[name],  // db_recipes.id (없으면 undefined)
+        dbRecipeId: dbIdMap[name],
       }
     })
     .filter((r) => r.name && !seen.has(r.name) && seen.add(r.name))
@@ -64,13 +64,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
   }
 
-  const { message, history, selectedIngredients } = await req.json()
+  // mode: 'search'(기본, Pinecone+LLM) | 'generate'(순수 LLM)
+  const { message, history, selectedIngredients, mode = 'search' } = await req.json()
+  const isGenerateMode = mode === 'generate'
 
   const ingredientText =
     Array.isArray(selectedIngredients) && selectedIngredients.length > 0
       ? (selectedIngredients as string[]).join(', ')
       : ''
-  const ingredientMention = ingredientText || message
   const isRecipe = isRecipeIntent(message, selectedIngredients ?? [])
 
   const systemPrompt = isRecipe
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
     ),
     {
       role: 'user',
-      parts: [{ text: isRecipe ? `사용자 메시지: ${message}\n사용자 재료: ${ingredientMention}` : message }],
+      parts: [{ text: isRecipe ? `사용자 메시지: ${message}\n사용자 재료: ${ingredientText || message}` : message }],
     },
   ]
 
@@ -104,44 +105,70 @@ export async function POST(req: NextRequest) {
     systemInstruction: systemPrompt,
   })
 
-  const searchQuery = [message, ingredientText].filter(Boolean).join(' ')
-
   let recipeCards: RecipeCard[] = []
   let llmResult: Awaited<ReturnType<typeof model.generateContentStream>>
 
   try {
-    const [pineconeResults, stream] = await Promise.all([
-      isRecipe
-        ? searchRecipes(searchQuery, 5)
-        : Promise.resolve([]),
-      model.generateContentStream({ contents }),
-    ])
+    if (isRecipe && isGenerateMode) {
+      // ── 생성 모드: 순수 LLM ──────────────────────────────────────
+      const recipeModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+      const recipePrompt = `사용자 요청: ${message}
+${ingredientText ? `재료: ${ingredientText}` : ''}
 
-    // Pinecone 결과의 recipe 이름으로 db_recipes.id 일괄 조회
-    let dbIdMap: Record<string, number> = {}
-    if (isRecipe && pineconeResults.length > 0) {
-      const names = pineconeResults
-        .map((doc) => String(doc.metadata.name ?? ''))
-        .filter(Boolean)
-      const supabase = getSupabaseAdmin()
-      const { data: dbRows, error: dbErr } = await supabase
-        .from('db_recipes')
-        .select('id, name')
-        .in('name', names)
-      if (dbErr) {
-        console.error('[claude] db_recipes id lookup error:', dbErr.message)
+한국 요리 레시피 3개를 JSON 배열로만 응답하세요 (다른 텍스트 없이):
+[{"name":"요리이름","cookTimeMinutes":숫자,"cookingMethod":"방법","ingredientsUsed":["재료"],"steps":["1. 단계","2. 단계","3. 단계"]}]`
+
+      const [recipeResult, stream] = await Promise.all([
+        recipeModel.generateContent(recipePrompt),
+        model.generateContentStream({ contents }),
+      ])
+
+      const jsonMatch = recipeResult.response.text().match(/\[[\s\S]*\]/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as GeminiRecipe[]
+        recipeCards = parsed.map((r) => ({
+          name: r.name ?? '',
+          cookingMethod: r.cookingMethod ?? '기타',
+          cookTimeMinutes: r.cookTimeMinutes ?? 0,
+          ingredientsRaw: (r.ingredientsUsed ?? []).join(', '),
+          imageUrl: '',
+          sourceUrl: '',
+          steps: r.steps ?? [],
+        }))
       }
-      dbIdMap = Object.fromEntries(
-        (dbRows ?? []).map((r: { id: number; name: string }) => [r.name, r.id])
-      )
-    }
+      llmResult = stream
 
-    recipeCards = isRecipe ? docsToCards(pineconeResults, dbIdMap) : []
-    console.log('[pinecone] query:', searchQuery, '| results:', pineconeResults.length, '| cards:', recipeCards.length)
-    llmResult = stream
+    } else if (isRecipe) {
+      // ── 찾기 모드: Pinecone + LLM (기본) ───────────────────────
+      const searchQuery = [message, ingredientText].filter(Boolean).join(' ')
+      const [pineconeResults, stream] = await Promise.all([
+        searchRecipes(searchQuery, 5),
+        model.generateContentStream({ contents }),
+      ])
+
+      let dbIdMap: Record<string, number> = {}
+      if (pineconeResults.length > 0) {
+        const names = pineconeResults.map((doc) => String(doc.metadata.name ?? '')).filter(Boolean)
+        const supabase = getSupabaseAdmin()
+        const { data: dbRows } = await supabase
+          .from('db_recipes')
+          .select('id, name')
+          .in('name', names)
+        dbIdMap = Object.fromEntries(
+          (dbRows ?? []).map((r: { id: number; name: string }) => [r.name, r.id])
+        )
+      }
+
+      recipeCards = docsToCards(pineconeResults, dbIdMap)
+      llmResult = stream
+
+    } else {
+      // ── 일반 대화 ────────────────────────────────────────────────
+      llmResult = await model.generateContentStream({ contents })
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error('[claude route init error]', msg)
+    console.error('[claude route error]', msg)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 

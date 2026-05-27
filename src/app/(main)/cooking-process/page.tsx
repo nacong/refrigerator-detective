@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import MobileContainer from '@/components/layout/MobileContainer'
 import { useAppStore } from '@/store/useAppStore'
 import { useQueryClient } from '@tanstack/react-query'
+import type { IngredientUpdate } from '@/app/api/gemini/ingredient-update/route'
 
 export default function CookingProcessPage() {
   const router = useRouter()
@@ -29,6 +30,11 @@ export default function CookingProcessPage() {
   // 별점
   const [rating, setRating] = useState<number>(0)
   const [hoverRating, setHoverRating] = useState<number>(0)
+
+  // 재료 자동 정리
+  const [ingredientUpdates, setIngredientUpdates] = useState<IngredientUpdate[]>([])
+  const [selectedUpdateIds, setSelectedUpdateIds] = useState<Set<string>>(new Set())
+  const [loadingIngredientUpdates, setLoadingIngredientUpdates] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number>(Date.now())
@@ -143,6 +149,23 @@ export default function CookingProcessPage() {
         throw new Error(errMsg)
       }
 
+      // 재료 자동 정리 적용
+      const toUpdate = ingredientUpdates.filter((u) => selectedUpdateIds.has(u.id))
+      if (toUpdate.length > 0) {
+        await Promise.allSettled(
+          toUpdate.map((u) =>
+            u.action === 'remove'
+              ? fetch(`/api/supabase/ingredients?id=${u.id}`, { method: 'DELETE' })
+              : fetch('/api/supabase/ingredients', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: u.id, quantity: u.newQuantity }),
+                })
+          )
+        )
+        queryClient.invalidateQueries({ queryKey: ['ingredients'] })
+      }
+
       queryClient.invalidateQueries({ queryKey: ['cooking-history'] })
       router.push('/cooking-history')
     } catch (err) {
@@ -152,6 +175,36 @@ export default function CookingProcessPage() {
       setIsSaving(false)
     }
   }
+
+  // 요리 완성 시 Gemini로 재료 소비 분석
+  useEffect(() => {
+    if (!isDone || !recipe) return
+    setLoadingIngredientUpdates(true)
+    ;(async () => {
+      try {
+        const ingredientsRes = await fetch('/api/supabase/ingredients')
+        if (!ingredientsRes.ok) return
+        const currentIngredients = await ingredientsRes.json()
+        if (!currentIngredients.length) return
+
+        const res = await fetch('/api/gemini/ingredient-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipeName: recipe.name,
+            ingredientsUsed: recipe.ingredientsRaw ?? '',
+            currentIngredients,
+          }),
+        })
+        if (!res.ok) return
+        const { updates } = await res.json() as { updates: IngredientUpdate[] }
+        setIngredientUpdates(updates)
+        setSelectedUpdateIds(new Set(updates.map((u) => u.id)))
+      } catch { /* 실패해도 무시 */ } finally {
+        setLoadingIngredientUpdates(false)
+      }
+    })()
+  }, [isDone, recipe])
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -290,6 +343,62 @@ export default function CookingProcessPage() {
                 <p className="text-center text-xs text-gray-400 mt-2">
                   {['', '아쉬웠어요 😢', '그저 그랬어요 😐', '괜찮았어요 🙂', '맛있었어요 😋', '최고예요! 🤩'][rating]}
                 </p>
+              )}
+            </div>
+
+            {/* ── 재료 자동 정리 섹션 ── */}
+            <div className="bg-gray-50 rounded-2xl px-4 py-4">
+              <p className="text-sm font-semibold text-gray-700 mb-3">🧹 사용한 재료 정리</p>
+
+              {loadingIngredientUpdates ? (
+                <div className="flex items-center gap-2 py-1">
+                  <span className="w-4 h-4 border-2 border-gray-200 border-t-[#13AF70] rounded-full animate-spin flex-shrink-0" />
+                  <span className="text-xs text-gray-400">사용한 재료 분석 중...</span>
+                </div>
+              ) : ingredientUpdates.length === 0 ? (
+                <p className="text-xs text-gray-400">냉장고에 연관 재료가 없어요</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {ingredientUpdates.map((u) => {
+                    const selected = selectedUpdateIds.has(u.id)
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() =>
+                          setSelectedUpdateIds((prev) => {
+                            const next = new Set(prev)
+                            next.has(u.id) ? next.delete(u.id) : next.add(u.id)
+                            return next
+                          })
+                        }
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                          selected ? 'bg-white border-gray-200' : 'bg-white border-gray-100 opacity-40'
+                        }`}
+                      >
+                        {/* 체크 */}
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          selected ? 'bg-[#13AF70] border-[#13AF70]' : 'border-gray-300'
+                        }`}>
+                          {selected && (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                              <path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-base flex-shrink-0">{u.emoji}</span>
+                        <span className="text-sm font-medium text-gray-800 flex-1">{u.name}</span>
+                        {u.action === 'remove' ? (
+                          <span className="text-xs font-medium text-red-400 flex-shrink-0">전부 사용됨</span>
+                        ) : (
+                          <span className="text-xs font-medium text-orange-400 flex-shrink-0">{u.newQuantity} 남음</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                  <p className="text-[11px] text-gray-400 pl-1 mt-0.5">
+                    체크된 재료는 저장 시 자동으로 수정됩니다
+                  </p>
+                </div>
               )}
             </div>
 

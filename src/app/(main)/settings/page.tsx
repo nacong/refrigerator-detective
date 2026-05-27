@@ -2,15 +2,44 @@
 
 import { useState } from 'react'
 import { signOut, useSession } from 'next-auth/react'
+import { useQuery } from '@tanstack/react-query'
 import MobileContainer from '@/components/layout/MobileContainer'
 import BottomNavigation from '@/components/BottomNavigation'
 import { useCookingHistory } from '@/hooks/useCookingHistory'
 
 const SAVINGS_PER_MEAL = 15000 // 원 (배달/외식 대비 절약 추정액)
 
+// 냉털 뱃지 레벨
+const BADGE_LEVELS = [
+  { min: 0,  max: 0,  emoji: '🥶', title: '냉털 전무',   desc: '아직 냉털을 시작하지 않았어요',   color: 'text-gray-400', bg: 'bg-gray-50' },
+  { min: 1,  max: 4,  emoji: '🌱', title: '냉털 새싹',   desc: '냉털을 시작했어요! 계속해봐요',    color: 'text-green-500', bg: 'bg-green-50' },
+  { min: 5,  max: 9,  emoji: '🥕', title: '냉털 초보',   desc: '이제 냉장고를 관리할 줄 알아요!', color: 'text-orange-500', bg: 'bg-orange-50' },
+  { min: 10, max: 19, emoji: '⭐', title: '냉털 달인',   desc: '음식 낭비 없이 척척 해내는 중!',  color: 'text-yellow-500', bg: 'bg-yellow-50' },
+  { min: 20, max: 49, emoji: '🏆', title: '냉털 전문가', desc: '냉장고 관리의 달인이에요!',        color: 'text-blue-500',  bg: 'bg-blue-50' },
+  { min: 50, max: Infinity, emoji: '👑', title: '냉털 마스터', desc: '전설의 냉장고 탐정!',       color: 'text-purple-500', bg: 'bg-purple-50' },
+]
+
+function getBadge(count: number) {
+  return BADGE_LEVELS.find((b) => count >= b.min && count <= b.max) ?? BADGE_LEVELS[0]
+}
+
+function getNextMilestone(count: number): number | null {
+  const milestones = [1, 5, 10, 20, 50]
+  return milestones.find((m) => m > count) ?? null
+}
+
 export default function SettingsPage() {
   const { data: session } = useSession()
   const { data: history = [] } = useCookingHistory()
+  const { data: userStats } = useQuery<{ cleared_count: number }>({
+    queryKey: ['user-stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/supabase/user-stats')
+      if (!res.ok) return { cleared_count: 0 }
+      return res.json()
+    },
+  })
+  const clearedCount = userStats?.cleared_count ?? 0
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -146,6 +175,53 @@ export default function SettingsPage() {
             <span className="text-[11px] text-gray-400 text-center leading-tight mt-1">평균<br />별점</span>
           </div>
         </div>
+
+        {/* 냉털 게이미피케이션 카드 */}
+        {(() => {
+          const badge = getBadge(clearedCount)
+          const next = getNextMilestone(clearedCount)
+          const progress = next
+            ? Math.round((clearedCount / next) * 100)
+            : 100
+
+          return (
+            <div className={`rounded-2xl px-4 py-4 flex flex-col gap-3 ${badge.bg}`}>
+              {/* 상단: 뱃지 + 카운트 */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[28px] leading-none">{badge.emoji}</span>
+                  <div>
+                    <p className={`text-[14px] font-extrabold ${badge.color}`}>{badge.title}</p>
+                    <p className="text-[11px] text-gray-400">{badge.desc}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[28px] font-extrabold text-gray-800 leading-none">{clearedCount}</span>
+                  <p className="text-[11px] text-gray-400 mt-0.5">냉털 횟수</p>
+                </div>
+              </div>
+
+              {/* 다음 마일스톤 프로그레스 */}
+              {next ? (
+                <>
+                  <div className="w-full h-2 bg-white/60 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#13AF70] rounded-full transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-500 text-center">
+                    다음 목표까지 <span className="font-bold text-gray-700">{next - clearedCount}개</span> 남았어요 →  {getBadge(next).emoji} {getBadge(next).title}
+                  </p>
+                </>
+              ) : (
+                <p className="text-[12px] text-center font-semibold text-purple-500">
+                  🎉 최고 등급 달성! 전설의 냉장고 탐정이에요!
+                </p>
+              )}
+            </div>
+          )
+        })()}
 
         {/* 이번 달 평균 영양 */}
         <div className="bg-white border border-gray-100 rounded-2xl px-4 py-4 flex flex-col gap-3">

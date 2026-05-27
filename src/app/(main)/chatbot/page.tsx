@@ -12,7 +12,7 @@ import type { ChatMessage } from '@/types'
 export default function ChatbotPage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { chatMessages, sendMessage, sendFridgeRecipe, isLoading } = useChat()
+  const { chatMessages, sendMessage, isLoading } = useChat()
   const { data: ingredients = [] } = useIngredients()
 
   const userName = session?.user?.name ?? '고객'
@@ -22,13 +22,37 @@ export default function ChatbotPage() {
     content: `안녕하세요, ${userName}님 😊\n저에게 의뢰를 주시면\n맞춤 레시피를 추천해 드릴게요!`,
     createdAt: new Date().toISOString(),
   }
+
   const [inputText, setInputText] = useState('')
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
+  const [recipeMode, setRecipeMode] = useState<'search' | 'generate'>('search')
+  const [loadingMode, setLoadingMode] = useState<'search' | 'generate'>('search')
+  const [showIngredientPicker, setShowIngredientPicker] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
+  const plusBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
+
+  // 재료 피커 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!showIngredientPicker) return
+    const handleClick = (e: MouseEvent) => {
+      if (
+        pickerRef.current &&
+        !pickerRef.current.contains(e.target as Node) &&
+        plusBtnRef.current &&
+        !plusBtnRef.current.contains(e.target as Node)
+      ) {
+        setShowIngredientPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showIngredientPicker])
 
   const toggleIngredient = (name: string) => {
     setSelectedIngredients((prev) =>
@@ -40,17 +64,8 @@ export default function ChatbotPage() {
     const text = inputText.trim()
     if (!text || isLoading) return
     setInputText('')
-    await sendMessage(text, selectedIngredients)
-  }
-
-  const handleFridgeRecipe = async () => {
-    if (isLoading || ingredients.length === 0) return
-    // 선택된 재료가 있으면 그것만, 없으면 전체 재료 사용
-    const targets =
-      selectedIngredients.length > 0
-        ? selectedIngredients
-        : ingredients.map((i) => i.name)
-    await sendFridgeRecipe(targets)
+    setLoadingMode(recipeMode)
+    await sendMessage(text, selectedIngredients, recipeMode)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -95,20 +110,38 @@ export default function ChatbotPage() {
           <div className="flex justify-start items-start gap-2 mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/detective_frontview.png"
+              src={loadingMode === 'generate' ? '/images/detective_thinking.png' : '/images/detective_frontview.png'}
               alt="냉탐이"
-              className="rounded-[14px] object-cover flex-shrink-0 mt-[6px]"
-              style={{ width: 44, height: 44 }}
+              className="rounded-[14px] object-cover flex-shrink-0"
+              style={loadingMode === 'generate' ? { width: 56, height: 56, marginTop: 4 } : { width: 44, height: 44, marginTop: 6 }}
             />
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-[11px] font-normal text-gray-500 pl-1 mb-0.5">냉탐이</p>
-              <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3">
-                <div className="flex gap-1.5 items-center">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+
+              {loadingMode === 'generate' ? (
+                /* 생성 모드 — 레시피 제작 중 */
+                <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3.5 max-w-[260px]">
+                  <p className="text-[13px] font-bold text-gray-700 mb-1">✨ 레시피 제작 중이에요!</p>
+                  <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
+                    재료와 조리 방법을 조합하고 있어요.{'\n'}
+                    잠깐만 기다려 주세요 😊
+                  </p>
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* 찾기 모드 — 기본 점점점 */
+                <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3">
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -116,92 +149,174 @@ export default function ChatbotPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 입력 영역 */}
-      <div className="border-t border-gray-100 px-4 pt-2.5 pb-3 safe-bottom">
-        {/* 냉털 레시피 버튼 */}
-        {ingredients.length > 0 && (
-          <button
-            onClick={handleFridgeRecipe}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 mb-2.5 py-2.5 rounded-2xl bg-orange-50 border border-orange-200 active:bg-orange-100 disabled:opacity-40 transition-colors"
-          >
-            <span className="text-base">🧹</span>
-            <span className="text-[13px] font-semibold text-orange-600">냉털 레시피</span>
-            <span className="text-[11px] text-orange-400">
-              {selectedIngredients.length > 0
-                ? `선택 재료 ${selectedIngredients.length}개로 추천`
-                : '냉장고 재료 전부 활용'}
-            </span>
-          </button>
-        )}
-
-        {/* 재료 선택 칩 — Supabase에 등록된 재료 */}
-        {ingredients.length > 0 && (
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2">
-            {/* 전체 선택 버튼 */}
+      {/* 추천 질문 — 스크롤 영역 밖, 입력창 바로 위 좌하단 고정 */}
+      {chatMessages.length === 0 && !isLoading && (
+        <div className="px-4 pt-2 pb-1 flex flex-col items-start gap-1.5">
+          <p className="text-[11px] text-gray-400 pl-1">이런 질문은 어때요?</p>
+          {[
+            { emoji: '🧹', label: '냉털 레시피 추천해줘.' },
+            { emoji: '🛒', label: '재료 하나만 추가하면 만들 수 있는 맛있는 레시피 추천해줘.' },
+            { emoji: '🍜', label: '지금 있는 재료로 부타동 만들어먹고 싶어' },
+          ].map(({ emoji, label }) => (
             <button
-              onClick={() => {
-                const allNames = ingredients.map((i) => i.name)
-                const allSelected = allNames.every((n) => selectedIngredients.includes(n))
-                setSelectedIngredients(allSelected ? [] : allNames)
-              }}
-              className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
-                ingredients.every((i) => selectedIngredients.includes(i.name))
-                  ? 'bg-[#13AF70] text-white border-[#13AF70]'
-                  : 'bg-white text-[#13AF70] border-[#13AF70]'
-              }`}
+              key={label}
+              onClick={() => setInputText(label)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-gray-200 bg-white active:bg-gray-50 transition-colors text-left"
             >
-              전체
+              <span className="text-sm flex-shrink-0">{emoji}</span>
+              <span className="text-[12px] text-gray-600 leading-snug">{label}</span>
             </button>
-            {ingredients.map((ingredient) => {
-              const selected = selectedIngredients.includes(ingredient.name)
-              return (
-                <button
-                  key={ingredient.id}
-                  onClick={() => toggleIngredient(ingredient.name)}
-                  className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                    selected ? 'bg-[#13AF70] text-white' : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  <span>{ingredient.emoji}</span>
-                  <span>{ingredient.name}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
+          ))}
+        </div>
+      )}
 
-        {/* 메시지 입력창 */}
-        <div className="flex items-end gap-2 bg-gray-100 rounded-2xl px-4 py-2">
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              selectedIngredients.length > 0
-                ? '선택된 재료로 레시피를 물어보세요…'
-                : '메시지를 입력하세요…'
-            }
-            rows={1}
-            className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 resize-none outline-none max-h-24"
-            style={{ minHeight: '24px' }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!inputText.trim() || isLoading}
-            className="w-8 h-8 rounded-full bg-[#13AF70] flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-90 transition-transform"
-            aria-label="전송"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 5v14M5 12l7-7 7 7"
-                stroke="white"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+      {/* 입력 영역 */}
+      <div className="border-t border-gray-100 px-4 pt-2 pb-3 safe-bottom">
+
+        {/* 메시지 입력창 + 재료 피커 팝업 */}
+        <div className="relative">
+
+          {/* 재료 선택 팝업 (+ 버튼 위 좌하단) */}
+          {showIngredientPicker && (
+            <div
+              ref={pickerRef}
+              className="absolute bottom-full left-0 mb-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 p-3 z-20"
+            >
+              {/* 헤더 */}
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-xs font-semibold text-gray-700">재료 선택</p>
+                {selectedIngredients.length > 0 && (
+                  <button
+                    onClick={() => setSelectedIngredients([])}
+                    className="text-[11px] text-gray-400 active:text-gray-600"
+                  >
+                    초기화
+                  </button>
+                )}
+              </div>
+
+              {ingredients.length === 0 ? (
+                <p className="text-xs text-gray-400 py-2 text-center">등록된 재료가 없어요</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {/* 전체 선택 */}
+                  <button
+                    onClick={() => {
+                      const allNames = ingredients.map((i) => i.name)
+                      const allSelected = allNames.every((n) => selectedIngredients.includes(n))
+                      setSelectedIngredients(allSelected ? [] : allNames)
+                    }}
+                    className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      ingredients.every((i) => selectedIngredients.includes(i.name))
+                        ? 'bg-[#13AF70] text-white border-[#13AF70]'
+                        : 'bg-white text-[#13AF70] border-[#13AF70]'
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {/* 재료 칩 */}
+                  {ingredients.map((ingredient) => {
+                    const selected = selectedIngredients.includes(ingredient.name)
+                    return (
+                      <button
+                        key={ingredient.id}
+                        onClick={() => toggleIngredient(ingredient.name)}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                          selected ? 'bg-[#13AF70] text-white' : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        <span>{ingredient.emoji}</span>
+                        <span>{ingredient.name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 입력 바 — ChatGPT 스타일: 상단 textarea, 하단 툴바 */}
+          <div className="flex flex-col bg-gray-100 rounded-2xl px-3 pt-2.5 pb-2 gap-2">
+            {/* 상단: textarea */}
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                selectedIngredients.length > 0
+                  ? `${selectedIngredients.length}개 재료로 레시피를 물어보세요…`
+                  : '메시지를 입력하세요…'
+              }
+              rows={1}
+              className="w-full bg-transparent text-sm text-gray-800 placeholder-gray-400 resize-none outline-none max-h-24"
+              style={{ minHeight: '24px' }}
+            />
+
+            {/* 하단 툴바: + 버튼 · 모드 pill | 전송 버튼 */}
+            <div className="flex items-center gap-2">
+              {/* + 버튼 */}
+              <button
+                ref={plusBtnRef}
+                onClick={() => setShowIngredientPicker((v) => !v)}
+                className={`relative w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${
+                  showIngredientPicker ? 'bg-[#13AF70]' : 'bg-white shadow-sm'
+                }`}
+                aria-label="재료 선택"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className={`transition-transform duration-200 ${showIngredientPicker ? 'rotate-45' : ''}`}
+                >
+                  <path
+                    d="M12 5v14M5 12h14"
+                    stroke={showIngredientPicker ? 'white' : '#6B7280'}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                {selectedIngredients.length > 0 && !showIngredientPicker && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#13AF70] rounded-full text-[9px] text-white flex items-center justify-center font-bold leading-none">
+                    {selectedIngredients.length}
+                  </span>
+                )}
+              </button>
+
+              {/* 모드 토글 pill */}
+              <button
+                onClick={() => setRecipeMode((m) => (m === 'search' ? 'generate' : 'search'))}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white shadow-sm active:scale-95 transition-transform"
+              >
+                <span className="text-[12px] leading-none">{recipeMode === 'search' ? '🔍' : '✨'}</span>
+                <span className={`text-[11px] font-semibold ${recipeMode === 'search' ? 'text-[#13AF70]' : 'text-orange-400'}`}>
+                  {recipeMode === 'search' ? '빠름' : '느림'}
+                </span>
+              </button>
+
+              {/* 스페이서 */}
+              <div className="flex-1" />
+
+              {/* 전송 버튼 */}
+              <button
+                onClick={handleSend}
+                disabled={!inputText.trim() || isLoading}
+                className="w-7 h-7 rounded-full bg-[#13AF70] flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-90 transition-transform"
+                aria-label="전송"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 5v14M5 12l7-7 7 7"
+                    stroke="white"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </MobileContainer>
