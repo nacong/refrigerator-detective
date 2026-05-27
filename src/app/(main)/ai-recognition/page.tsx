@@ -9,7 +9,10 @@ import type { Ingredient } from '@/types'
 
 type Phase = 'picking' | 'processing' | 'result' | 'manual'
 
-const DEFAULT_MANUAL_FORM = { name: '', emoji: '', quantity: '', expiryDate: '' }
+const getOneWeekLater = () =>
+  new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+const DEFAULT_MANUAL_FORM = () => ({ name: '', emoji: '', quantity: '', expiryDate: getOneWeekLater() })
 
 function AIRecognitionContent() {
   const router = useRouter()

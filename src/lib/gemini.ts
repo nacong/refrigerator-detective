@@ -33,9 +33,10 @@ JSON만 반환하고 다른 텍스트는 포함하지 마세요.`
   if (!jsonMatch) return []
 
   const ingredients = JSON.parse(jsonMatch[0]) as Partial<Ingredient>[]
+  const oneWeekLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   return ingredients.map((item, index) => ({
     ...item,
     id: `temp-${index}`,
-    expiryDate: '',
+    expiryDate: oneWeekLater,
   }))
 }

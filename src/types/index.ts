@@ -29,6 +29,7 @@ export interface ChatRecipe {
   imageUrl: string
   sourceUrl: string
   steps?: string[]
+  dbRecipeId?: number   // db_recipes.id 참조 (AI 생성 또는 히스토리 재생 시)
 }
 
 export interface ChatMessage {
