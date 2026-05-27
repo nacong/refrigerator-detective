@@ -20,6 +20,7 @@ export default function CookingHistoryPage() {
       imageUrl: item.thumbnail_url,
       sourceUrl: '',
       steps: item.steps,
+      dbRecipeId: item.db_recipe_id ?? undefined,
     })
     router.push('/cooking-process')
   }
