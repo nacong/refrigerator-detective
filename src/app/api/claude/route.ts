@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { searchRecipes } from '@/lib/rag'
+import { getSupabaseAdmin } from '@/lib/supabase'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export const dynamic = 'force-dynamic'
@@ -26,26 +27,34 @@ type RecipeCard = {
   imageUrl: string
   sourceUrl: string
   steps: string[]
+  dbRecipeId?: number   // db_recipes.id — cooking-history 저장 시 사용
 }
 
-function docsToCards(results: Awaited<ReturnType<typeof searchRecipes>>): RecipeCard[] {
+function docsToCards(
+  results: Awaited<ReturnType<typeof searchRecipes>>,
+  dbIdMap: Record<string, number> = {}
+): RecipeCard[] {
   const seen = new Set<string>()
   return results
-    .map((doc) => ({
-      name: String(doc.metadata.name ?? ''),
-      cookingMethod: String(doc.metadata.cooking_method ?? ''),
-      cookTimeMinutes: parseInt(String(doc.metadata.cook_time_minutes ?? '0')) || 0,
-      ingredientsRaw: String(doc.metadata.ingredients_raw ?? ''),
-      imageUrl: String(doc.metadata.image_url ?? ''),
-      sourceUrl: String(doc.metadata.source_url ?? ''),
-      steps: (() => {
-        try {
-          const match = doc.pageContent.match(/조리순서:\s*(.+)/)
-          if (!match) return []
-          return match[1].split(/\d+\.\s+/).map((s) => s.trim()).filter(Boolean)
-        } catch { return [] }
-      })(),
-    }))
+    .map((doc) => {
+      const name = String(doc.metadata.name ?? '')
+      return {
+        name,
+        cookingMethod: String(doc.metadata.cooking_method ?? ''),
+        cookTimeMinutes: parseInt(String(doc.metadata.cook_time_minutes ?? '0')) || 0,
+        ingredientsRaw: String(doc.metadata.ingredients_raw ?? ''),
+        imageUrl: String(doc.metadata.image_url ?? ''),
+        sourceUrl: String(doc.metadata.source_url ?? ''),
+        steps: (() => {
+          try {
+            const match = doc.pageContent.match(/조리순서:\s*(.+)/)
+            if (!match) return []
+            return match[1].split(/\d+\.\s+/).map((s) => s.trim()).filter(Boolean)
+          } catch { return [] }
+        })(),
+        dbRecipeId: dbIdMap[name],  // db_recipes.id (없으면 undefined)
+      }
+    })
     .filter((r) => r.name && !seen.has(r.name) && seen.add(r.name))
 }
 
@@ -107,7 +116,27 @@ export async function POST(req: NextRequest) {
         : Promise.resolve([]),
       model.generateContentStream({ contents }),
     ])
-    recipeCards = isRecipe ? docsToCards(pineconeResults) : []
+
+    // Pinecone 결과의 recipe 이름으로 db_recipes.id 일괄 조회
+    let dbIdMap: Record<string, number> = {}
+    if (isRecipe && pineconeResults.length > 0) {
+      const names = pineconeResults
+        .map((doc) => String(doc.metadata.name ?? ''))
+        .filter(Boolean)
+      const supabase = getSupabaseAdmin()
+      const { data: dbRows, error: dbErr } = await supabase
+        .from('db_recipes')
+        .select('id, name')
+        .in('name', names)
+      if (dbErr) {
+        console.error('[claude] db_recipes id lookup error:', dbErr.message)
+      }
+      dbIdMap = Object.fromEntries(
+        (dbRows ?? []).map((r: { id: number; name: string }) => [r.name, r.id])
+      )
+    }
+
+    recipeCards = isRecipe ? docsToCards(pineconeResults, dbIdMap) : []
     console.log('[pinecone] query:', searchQuery, '| results:', pineconeResults.length, '| cards:', recipeCards.length)
     llmResult = stream
   } catch (err) {
