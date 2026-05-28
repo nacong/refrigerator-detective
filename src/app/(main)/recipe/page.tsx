@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import MobileContainer from '@/components/layout/MobileContainer'
 import { useAppStore } from '@/store/useAppStore'
+import { getCoupangSearchUrl } from '@/lib/coupang'
 
 const IMAGE_H = 280
 
@@ -27,6 +28,9 @@ export default function RecipeDetailPage() {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
+
+  // 수량/단위 제거 — "달걀 2개" → "달걀", "간장 1큰술" → "간장"
+  const extractName = (ing: string) => ing.replace(/\s+[\d½⅓⅔¼¾].*$/, '').trim()
 
   return (
     <MobileContainer fullHeight>
@@ -82,19 +86,27 @@ export default function RecipeDetailPage() {
 
           {/* 재료 */}
           <section>
-            <h3 className="text-sm font-bold text-gray-800 mb-3">재료</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-bold text-gray-800">재료</h3>
+              <span className="flex items-center gap-1 text-[12px] text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+재료 클릭하면 <span className="font-black text-[#C00] tracking-tight">쿠팡</span>으로 바로 이동
+              </span>
+            </div>
             <div className="grid grid-cols-2 rounded-2xl overflow-hidden border border-gray-100">
               {ingredients.map((ing, i) => (
-                <div
+                <a
                   key={ing}
-                  className={`flex items-center gap-3 px-4 py-3
+                  href={getCoupangSearchUrl(extractName(ing))}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center gap-3 px-4 py-3 active:bg-[#FFFBEA] transition-colors
                     ${i % 2 === 0 ? 'border-r border-gray-100' : ''}
                     ${i < ingredients.length - (ingredients.length % 2 === 0 ? 2 : 1) ? 'border-b border-gray-100' : ''}
                   `}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#13AF70] flex-shrink-0" />
-                  <span className="text-sm text-gray-700 truncate">{ing}</span>
-                </div>
+                  <span className="text-sm text-gray-700 truncate flex-1">{ing}</span>
+                </a>
               ))}
             </div>
           </section>

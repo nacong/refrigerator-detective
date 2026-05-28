@@ -6,6 +6,7 @@ import MobileContainer from '@/components/layout/MobileContainer'
 import { useAppStore } from '@/store/useAppStore'
 import { useQueryClient } from '@tanstack/react-query'
 import type { IngredientUpdate } from '@/app/api/gemini/ingredient-update/route'
+import { getCoupangSearchUrl } from '@/lib/coupang'
 
 export default function CookingProcessPage() {
   const router = useRouter()
@@ -388,11 +389,24 @@ export default function CookingProcessPage() {
                         </div>
                         <span className="text-base flex-shrink-0">{u.emoji}</span>
                         <span className="text-sm font-medium text-gray-800 flex-1">{u.name}</span>
-                        {u.action === 'remove' ? (
-                          <span className="text-xs font-medium text-red-400 flex-shrink-0">전부 사용됨</span>
-                        ) : (
-                          <span className="text-xs font-medium text-orange-400 flex-shrink-0">{u.newQuantity} 남음</span>
-                        )}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {u.action === 'remove' ? (
+                            <span className="text-xs font-medium text-red-400">전부 사용됨</span>
+                          ) : (
+                            <span className="text-xs font-medium text-orange-400">{u.newQuantity} 남음</span>
+                          )}
+                          {u.action === 'remove' && (
+                            <a
+                              href={getCoupangSearchUrl(u.name)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-[10px] font-semibold text-gray-400 underline underline-offset-2 active:text-gray-600"
+                            >
+                              재주문
+                            </a>
+                          )}
+                        </div>
                       </button>
                     )
                   })}
