@@ -82,10 +82,6 @@ const LOCATION_META: Record<IngredientLocation, { icon: string; label: string }>
   실온:   { icon: '🌡️', label: '실온' },
 }
 
-const CATEGORY_BADGE: Record<IngredientCategory, string> = Object.fromEntries(
-  CATEGORIES.map(({ key, badgeClass }) => [key, badgeClass])
-) as Record<IngredientCategory, string>
-
 interface Toast {
   id: number
   name: string
