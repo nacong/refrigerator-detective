@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
@@ -35,6 +35,8 @@ export default function MainPage() {
     })
   )
   const [ready, setReady] = useState(false)
+  const [showLetter, setShowLetter] = useState(false)
+  const closeLetter = useCallback(() => setShowLetter(false), [])
 
   // 첫 로그인 감지 — 바로 /tutorial/step1로 이동 (메인 화면 안 거침)
   useEffect(() => {
@@ -57,11 +59,19 @@ export default function MainPage() {
   return (
     <MobileContainer fullHeight>
       {/* 헤더 */}
-      <header className="px-4 pb-3" style={{ paddingTop: 'max(32px, calc(env(safe-area-inset-top) + 16px))' }}>
+      <header className="px-4 pb-3 flex items-center justify-between" style={{ paddingTop: 'max(32px, calc(env(safe-area-inset-top) + 16px))' }}>
         <h1 className="text-[22px] font-bold text-gray-900 flex items-center gap-1.5 leading-none">
           <span className="text-[22px] leading-none">🌱</span>
           <span>냉장고 탐정</span>
         </h1>
+        <button
+          onClick={() => setShowLetter(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 active:bg-gray-200 transition-colors"
+          aria-label="개발자 레터"
+        >
+          <span className="text-[13px]">✉️</span>
+          <span className="text-[12px] font-medium text-gray-500">개발자 레터</span>
+        </button>
       </header>
 
       {/* 상단 정보 영역 — 스크롤 없음 */}
@@ -96,6 +106,72 @@ export default function MainPage() {
 
       {/* 하단 고정 네비 */}
       <BottomNavigation active="home" />
+
+      {/* 개발자 레터 모달 */}
+      {showLetter && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+          onClick={closeLetter}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-t-3xl px-6 pt-5 pb-10 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 핸들 + 헤더 */}
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✉️</span>
+                <h2 className="text-[16px] font-bold text-gray-900">개발자 레터</h2>
+              </div>
+              <button onClick={closeLetter} className="text-gray-400 text-sm active:text-gray-600">닫기</button>
+            </div>
+
+            {/* 본문 */}
+            <div className="flex flex-col gap-5 text-[14px] text-gray-700 leading-relaxed">
+
+              <p>안녕하세요 😊<br />냉장고 탐정을 사용해주셔서 감사합니다.</p>
+
+              <div className="bg-[#F0FBF5] rounded-2xl px-4 py-4 flex flex-col gap-2">
+                <p className="font-bold text-[#0D9E63] text-[15px]">오전의 뇌는 다릅니다.</p>
+                <p className="text-gray-600">
+                  심리학자 Roy Baumeister의 <span className="font-semibold">결정 피로(Decision Fatigue)</span> 연구에 따르면,
+                  우리가 하루 동안 내리는 크고 작은 결정들이 쌓일수록 뇌의 판단력은 서서히 소모됩니다.
+                  그래서 오전에는 하기 싫은 일도 비교적 수월하게 해낼 수 있어요.
+                </p>
+              </div>
+
+              <p>
+                저녁 7시의 나는 요리하고 싶지 않습니다.<br />
+                그 판단을 <span className="font-semibold text-gray-900">오전의 나에게 맡겨보세요.</span>
+              </p>
+
+              <div className="border-l-4 border-[#13AF70] pl-4 flex flex-col gap-1.5">
+                <p className="font-semibold text-gray-900">오전·점심에 요리 → 저녁에 같은 걸 먹기</p>
+                <p className="text-gray-500 text-[13px]">
+                  이 사이클은 단순히 식비를 아끼는 것을 넘어, 먹는 것 자체를 루틴으로 만들어줍니다.
+                  결정해야 할 것이 하나 줄어드는 것만으로 저녁이 훨씬 가벼워져요.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl px-4 py-4">
+                <p className="font-bold text-gray-900 mb-1.5">⏱ 습관은 평균 66일</p>
+                <p className="text-gray-600 text-[13px]">
+                  UCL의 Phillippa Lally 연구팀에 따르면, 새로운 행동이 자동화되기까지는 평균 <span className="font-semibold">66일</span>이 걸립니다.
+                  두 달이 지나면 &lsquo;오늘 뭐 먹지?&rsquo;라는 고민 자체가 사라집니다.
+                </p>
+              </div>
+
+              <p>
+                냉장고 탐정은 그 66일 동안 옆에서 함께할게요. 🕵️<br />
+                오늘 냉장고에 있는 재료로 딱 하나만 만들어보는 것부터 시작해요.
+              </p>
+
+              <p className="text-right text-gray-400 text-[13px]">— 개발팀 드림</p>
+            </div>
+          </div>
+        </div>
+      )}
     </MobileContainer>
   )
 }

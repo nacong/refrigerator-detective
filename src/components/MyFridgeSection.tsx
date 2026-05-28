@@ -35,7 +35,7 @@ export default function MyFridgeSection({
   return (
     <section className="mb-5">
       <div className="flex items-center justify-between px-4 mb-3">
-        <h2 className="text-[16px] font-bold text-gray-800">내 냉장고</h2>
+        <h2 className="text-[16px] font-bold text-gray-800">나의 식재료</h2>
         <button
           onClick={onClickAll}
           className="text-[13px] text-gray-400 font-medium flex items-center gap-0.5"
