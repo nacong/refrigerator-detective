@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import { useAppStore } from '@/store/useAppStore'
+import { getCoupangSearchUrl } from '@/lib/coupang'
 import type { ChatMessage, ChatRecipe } from '@/types'
 
 interface ChatBubbleProps {
@@ -115,6 +116,28 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
           {message.chatRecipes.map((recipe) => (
             <RecipeChip key={recipe.name} recipe={recipe} />
           ))}
+        </div>
+      )}
+
+      {/* 쿠팡 장보기 버튼 — additionalIngredient 있을 때만 */}
+      {message.additionalIngredient && (
+        <div className="pl-[52px] pt-2.5">
+          <a
+            href={getCoupangSearchUrl(message.additionalIngredient)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2.5 px-4 py-3 bg-[#FEE500] rounded-2xl active:opacity-80 transition-opacity shadow-sm"
+          >
+            {/* 쿠팡 텍스트 로고 */}
+            <span className="text-[15px] font-black text-[#C00] tracking-tight leading-none">coupang</span>
+            <div className="w-px h-6 bg-yellow-400" />
+            <div className="flex flex-col items-start">
+              <span className="text-[12px] font-bold text-gray-900 leading-tight">
+                {message.additionalIngredient} 바로 구매하기
+              </span>
+              <span className="text-[10px] text-gray-600 leading-tight mt-0.5">로켓배송 최저가 검색 →</span>
+            </div>
+          </a>
         </div>
       )}
     </div>

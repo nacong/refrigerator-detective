@@ -76,6 +76,7 @@ ${ingredientList}
 
   let recipeCards: ChatRecipe[] = []
   let replyText = ''
+  let additionalIngredient = ''
 
   try {
     const result = await model.generateContent(prompt)
@@ -85,6 +86,7 @@ ${ingredientList}
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]) as GeminiOneMoreResponse
       const added = parsed.additionalIngredient ?? ''
+      additionalIngredient = added
 
       recipeCards = (parsed.recipes ?? []).map((r) => ({
         name: r.name ?? '',
@@ -117,7 +119,8 @@ ${ingredientList}
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
       'X-Recipe-Cards': encodeURIComponent(JSON.stringify(recipeCards)),
-      'Access-Control-Expose-Headers': 'X-Recipe-Cards',
+      'X-Additional-Ingredient': encodeURIComponent(additionalIngredient),
+      'Access-Control-Expose-Headers': 'X-Recipe-Cards, X-Additional-Ingredient',
     },
   })
 }

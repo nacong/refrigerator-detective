@@ -173,6 +173,12 @@ export function useChat() {
         if (header) chatRecipes = JSON.parse(decodeURIComponent(header))
       } catch { /* ignore */ }
 
+      let additionalIngredient: string | undefined
+      try {
+        const header = res.headers.get('X-Additional-Ingredient')
+        if (header) additionalIngredient = decodeURIComponent(header) || undefined
+      } catch { /* ignore */ }
+
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let assistantContent = ''
@@ -182,6 +188,7 @@ export function useChat() {
         role: 'assistant',
         content: '',
         chatRecipes,
+        additionalIngredient,
         createdAt: new Date().toISOString(),
       })
 

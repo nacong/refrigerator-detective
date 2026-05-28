@@ -121,7 +121,7 @@ export default function ChatbotPage() {
               {loadingMode === 'generate' ? (
                 /* 생성 모드 — 레시피 제작 중 */
                 <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3.5 max-w-[260px]">
-                  <p className="text-[13px] font-bold text-gray-700 mb-1">✨ 레시피 제작 중이에요!</p>
+                  <p className="text-[13px] font-bold text-gray-700 mb-1">✨ 생성모드 — 레시피 제작 중!</p>
                   <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
                     재료와 조리 방법을 조합하고 있어요.{'\n'}
                     잠깐만 기다려 주세요 😊
@@ -291,7 +291,7 @@ export default function ChatbotPage() {
               >
                 <span className="text-[12px] leading-none">{recipeMode === 'search' ? '🔍' : '✨'}</span>
                 <span className={`text-[11px] font-semibold ${recipeMode === 'search' ? 'text-[#13AF70]' : 'text-orange-400'}`}>
-                  {recipeMode === 'search' ? '빠름' : '느림'}
+                  {recipeMode === 'search' ? '검색모드' : '생성모드'}
                 </span>
               </button>
 
