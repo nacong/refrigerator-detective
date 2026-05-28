@@ -12,9 +12,13 @@ export async function recognizeIngredients(imageBase64: string, mimeType: string
   {
     "name": "식재료 이름 (한국어)",
     "emoji": "적절한 이모지",
-    "quantity": "추정 수량 또는 용량 (예: 6개, 200ml, 300g)"
+    "quantity": "추정 수량 또는 용량 (예: 6개, 200ml, 300g)",
+    "location": "보관 위치 — 냉장실 | 냉동실 | 실온 중 하나",
+    "category": "카테고리 — 채소/과일 | 육류/해산물 | 유제품/계란 | 양념/소스 | 반조리식품 | 남은음식/반찬 | 기타 중 하나"
   }
 ]
+location은 사진 속 위치(냉장실 칸/냉동실 칸 등)나 식재료 특성으로 판단하고,
+category는 식재료 종류로 판단하세요.
 JSON만 반환하고 다른 텍스트는 포함하지 마세요.`
 
   const imagePart = {

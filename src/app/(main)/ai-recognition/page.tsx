@@ -120,6 +120,8 @@ function AIRecognitionContent() {
           emoji: ingredient.emoji || '🥘',
           quantity: ingredient.quantity || '적당량',
           expiryDate: ingredient.expiryDate || '',
+          location: ingredient.location ?? '냉장실',
+          category: ingredient.category ?? '기타',
         })
       }
       router.push(from === 'rescue-list' ? '/rescue-list' : '/')
