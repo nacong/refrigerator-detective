@@ -1,5 +1,8 @@
 // 앱 전체에서 사용하는 타입 정의
 
+export type IngredientLocation = '냉장실' | '냉동실' | '실온'
+export type IngredientCategory = '채소/과일' | '육류/해산물' | '유제품/계란' | '양념/소스' | '반조리식품' | '남은음식/반찬' | '기타'
+
 export interface Ingredient {
   id: string
   name: string
@@ -8,6 +11,9 @@ export interface Ingredient {
   expiryDate: string // ISO 날짜 문자열 (YYYY-MM-DD)
   userId?: string
   imageUrl?: string
+  location?: IngredientLocation
+  category?: IngredientCategory
+  createdAt?: string
 }
 
 export interface Recipe {
@@ -39,6 +45,7 @@ export interface ChatMessage {
   recipes?: Recipe[]
   chatRecipes?: ChatRecipe[]
   selectedIngredients?: string[] // 유저 메시지에 첨부된 선택 재료
+  additionalIngredient?: string  // one-more-ingredient: LLM 추천 추가 재료 (쿠팡 링크용)
   createdAt: string
 }
 

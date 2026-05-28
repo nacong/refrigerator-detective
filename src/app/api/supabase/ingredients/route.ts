@@ -12,6 +12,9 @@ interface IngredientRow {
   quantity: string
   expiry_date: string
   user_email: string
+  location?: string
+  category?: string
+  created_at?: string
 }
 
 export async function GET() {
@@ -36,6 +39,9 @@ export async function GET() {
     quantity: row.quantity,
     expiryDate: row.expiry_date,
     userId: row.user_email,
+    location: row.location ?? '냉장실',
+    category: row.category ?? '기타',
+    createdAt: row.created_at,
   }))
 
   return NextResponse.json(ingredients)
@@ -58,6 +64,8 @@ export async function POST(req: NextRequest) {
       quantity: body.quantity,
       expiry_date: body.expiryDate,
       user_email: session.user.email,
+      location: body.location ?? '냉장실',
+      category: body.category ?? '기타',
     })
     .select()
     .single()
@@ -72,13 +80,18 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
   }
 
-  const { id, quantity } = await req.json()
+  const { id, quantity, location, category } = await req.json()
   if (!id) return NextResponse.json({ error: 'id가 필요합니다' }, { status: 400 })
+
+  const updateFields: Record<string, string> = {}
+  if (quantity !== undefined) updateFields.quantity = quantity
+  if (location !== undefined) updateFields.location = location
+  if (category !== undefined) updateFields.category = category
 
   const supabase = getSupabaseAdmin()
   const { error } = await supabase
     .from('my_ingredients')
-    .update({ quantity })
+    .update(updateFields)
     .eq('id', id)
     .eq('user_email', session.user.email)
 
