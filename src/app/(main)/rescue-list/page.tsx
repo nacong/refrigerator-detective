@@ -96,15 +96,15 @@ export default function RescueListPage() {
   const deleteIngredient = useDeleteIngredient()
 
   const [toasts, setToasts] = useState<Toast[]>([])
-  // 아코디언 상태 — 기본 전체 열림
+  // 아코디언 상태 — 기본 전체 닫힘
   const [collapsed, setCollapsed] = useState<Record<IngredientCategory, boolean>>({
-    '채소/과일': false,
-    '육류/해산물': false,
-    '유제품/계란': false,
-    '반조리식품': false,
-    '남은음식/반찬': false,
-    '양념/소스': false,
-    '기타': false,
+    '채소/과일': true,
+    '육류/해산물': true,
+    '유제품/계란': true,
+    '반조리식품': true,
+    '남은음식/반찬': true,
+    '양념/소스': true,
+    '기타': true,
   })
   // 위치/카테고리 편집 바텀시트
   const [editTarget, setEditTarget] = useState<Ingredient | null>(null)
