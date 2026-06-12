@@ -7,12 +7,6 @@ export interface CookingHistoryItem {
   cooked_at: string
   cook_time: number
   rating: number | null   // 별점 1~5
-  nutrition: {
-    calories: number
-    protein: number
-    carbs: number
-    fat: number
-  } | null
   // recipes 조인 데이터
   recipe_name: string
   thumbnail_url: string   // photo_url 우선, 없으면 db_recipes.image_url

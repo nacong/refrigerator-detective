@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { searchRecipes } from '@/lib/rag'
 import { getSupabaseAdmin } from '@/lib/supabase'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import type { ChatRecipe } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -79,11 +79,11 @@ export async function POST(req: NextRequest) {
 레시피 목록은 따로 카드로 보여드리니 레시피 설명·조리 방법은 쓰지 마세요.
 사용자의 요청을 자연스럽게 반영한 한 문장 인사만 쓰세요. 예시:
 - "달달한 디저트 추천" → "안녕하세요! 달달한 디저트 레시피를 찾아드릴게요!"
-- "김치로 만들 수 있는 요리" → "안녕하세요! 김치를 활용한 맛있는 레시피를 추천해 드릴게요!"
+- "김치로 만들 수 있는 요리" → "안녕하세요! 김치를 활용한 맛있는 레시피를 만들어드릴게요!"
 - 재료 선택 시 → "안녕하세요! 선택하신 재료로 만들 수 있는 레시피를 찾아드릴게요!"
 존댓말 사용. 레시피에 대한 내용은 쓰지 마세요.`
     : `당신은 냉장고 탐정 "냉탐이"입니다.
-냉탐이는 가지고 있는 재료를 바탕으로 요리하고 싶어지는 레시피를 추천해요.
+냉탐이는 가지고 있는 재료를 바탕으로 요리하고 싶어지는 레시피를 만들어드려요.
 간결하게 답변하세요. 존댓말을 사용하세요.`
 
   const contents = [
@@ -99,19 +99,18 @@ export async function POST(req: NextRequest) {
     },
   ]
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+  const chatConfig = {
     model: 'gemini-2.5-flash',
-    systemInstruction: systemPrompt,
-  })
+    config: { systemInstruction: systemPrompt, thinkingConfig: { thinkingBudget: 0 } },
+  }
 
   let recipeCards: RecipeCard[] = []
-  let llmResult: Awaited<ReturnType<typeof model.generateContentStream>>
+  let llmStream: AsyncGenerator<import('@google/genai').GenerateContentResponse>
 
   try {
     if (isRecipe && isGenerateMode) {
       // ── 생성 모드: 순수 LLM ──────────────────────────────────────
-      const recipeModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
       const recipePrompt = `사용자 요청: ${message}
 ${ingredientText ? `재료: ${ingredientText}` : ''}
 
@@ -119,11 +118,15 @@ ${ingredientText ? `재료: ${ingredientText}` : ''}
 [{"name":"요리이름","cookTimeMinutes":숫자,"cookingMethod":"방법","ingredientsUsed":["재료"],"steps":["1. 단계","2. 단계","3. 단계"]}]`
 
       const [recipeResult, stream] = await Promise.all([
-        recipeModel.generateContent(recipePrompt),
-        model.generateContentStream({ contents }),
+        ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [{ role: 'user', parts: [{ text: recipePrompt }] }],
+          config: { thinkingConfig: { thinkingBudget: 0 } },
+        }),
+        ai.models.generateContentStream({ ...chatConfig, contents }),
       ])
 
-      const jsonMatch = recipeResult.response.text().match(/\[[\s\S]*\]/)
+      const jsonMatch = (recipeResult.text ?? '').match(/\[[\s\S]*\]/)
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]) as GeminiRecipe[]
         recipeCards = parsed.map((r) => ({
@@ -136,14 +139,14 @@ ${ingredientText ? `재료: ${ingredientText}` : ''}
           steps: r.steps ?? [],
         }))
       }
-      llmResult = stream
+      llmStream = stream
 
     } else if (isRecipe) {
       // ── 찾기 모드: Pinecone + LLM (기본) ───────────────────────
       const searchQuery = [message, ingredientText].filter(Boolean).join(' ')
       const [pineconeResults, stream] = await Promise.all([
         searchRecipes(searchQuery, 5),
-        model.generateContentStream({ contents }),
+        ai.models.generateContentStream({ ...chatConfig, contents }),
       ])
 
       let dbIdMap: Record<string, number> = {}
@@ -160,11 +163,11 @@ ${ingredientText ? `재료: ${ingredientText}` : ''}
       }
 
       recipeCards = docsToCards(pineconeResults, dbIdMap)
-      llmResult = stream
+      llmStream = stream
 
     } else {
       // ── 일반 대화 ────────────────────────────────────────────────
-      llmResult = await model.generateContentStream({ contents })
+      llmStream = await ai.models.generateContentStream({ ...chatConfig, contents })
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -176,8 +179,8 @@ ${ingredientText ? `재료: ${ingredientText}` : ''}
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of llmResult.stream) {
-          const text = chunk.text()
+        for await (const chunk of llmStream) {
+          const text = chunk.text ?? ''
           if (text) controller.enqueue(encoder.encode(text))
         }
         controller.close()

@@ -87,7 +87,7 @@ export function useChat() {
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: '🧹 냉털 레시피 추천해줘!',
+      content: '🧹 냉털 레시피 만들어줘!',
       selectedIngredients: ingredients.length > 0 ? [...ingredients] : undefined,
       createdAt: new Date().toISOString(),
     }
@@ -151,7 +151,7 @@ export function useChat() {
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: '재료 하나만 추가하면 만들 수 있는 맛있는 레시피 추천해줘.',
+      content: '재료 하나만 추가하면 만들 수 있는 맛있는 레시피 만들어줘.',
       selectedIngredients: ingredients.length > 0 ? [...ingredients] : undefined,
       createdAt: new Date().toISOString(),
     }

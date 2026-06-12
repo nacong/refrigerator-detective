@@ -80,13 +80,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
   }
 
-  const { id, quantity, location, category } = await req.json()
+  const { id, quantity, location, category, expiryDate } = await req.json()
   if (!id) return NextResponse.json({ error: 'id가 필요합니다' }, { status: 400 })
 
   const updateFields: Record<string, string> = {}
   if (quantity !== undefined) updateFields.quantity = quantity
   if (location !== undefined) updateFields.location = location
   if (category !== undefined) updateFields.category = category
+  if (expiryDate !== undefined) updateFields.expiry_date = expiryDate
 
   const supabase = getSupabaseAdmin()
   const { error } = await supabase

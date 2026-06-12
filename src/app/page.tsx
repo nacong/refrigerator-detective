@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
-import MyFridgeSection from '@/components/MyFridgeSection'
 import TodayRecommendedRecipes from '@/components/TodayRecommendedRecipes'
-import DetectiveOfficeSection from '@/components/DetectiveOfficeSection'
+import DetectiveSummaryHero from '@/components/DetectiveSummaryHero'
+import SoloCookingSection from '@/components/SoloCookingSection'
 import BottomNavigation from '@/components/BottomNavigation'
 import { useIngredients } from '@/hooks/useIngredients'
 import { usePineconeRecommendations } from '@/hooks/usePineconeRecommendations'
@@ -38,6 +38,18 @@ export default function MainPage() {
   const [showLetter, setShowLetter] = useState(false)
   const closeLetter = useCallback(() => setShowLetter(false), [])
 
+  const [showDetective, setShowDetective] = useState(true)
+  const [dismissingDetective, setDismissingDetective] = useState(false)
+  const [activeTab, setActiveTab] = useState<0 | 1>(0)
+  const handleDismissDetective = useCallback(() => {
+    setDismissingDetective(true)
+    setTimeout(() => {
+      setShowDetective(false)
+      setDismissingDetective(false)
+    }, 450)
+  }, [])
+
+
   // 첫 로그인 감지 — 바로 /tutorial/step1로 이동 (메인 화면 안 거침)
   useEffect(() => {
     if (!session?.user?.email) return
@@ -58,57 +70,91 @@ export default function MainPage() {
 
   return (
     <MobileContainer fullHeight>
-      {/* 헤더 */}
-      <header className="px-4 pb-3 flex items-center justify-between" style={{ paddingTop: 'max(32px, calc(env(safe-area-inset-top) + 16px))' }}>
+      {/* 헤더 — 고정 */}
+      <header className="px-4 pb-3 flex items-center justify-between flex-shrink-0 bg-white" style={{ paddingTop: 'max(32px, calc(env(safe-area-inset-top) + 16px))' }}>
         <h1 className="text-[22px] font-bold text-gray-900 flex items-center gap-1.5 leading-none">
           <span className="text-[22px] leading-none">🌱</span>
           <span>냉장고 탐정</span>
         </h1>
-        <button
-          onClick={() => setShowLetter(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 active:bg-gray-200 transition-colors"
-          aria-label="개발자 레터"
-        >
-          <span className="text-[13px]">✉️</span>
-          <span className="text-[12px] font-medium text-gray-500">개발자 레터</span>
-        </button>
+        {/* 개발자 레터 버튼 — 임시 비활성화 */}
+        {false && (
+          <button
+            onClick={() => setShowLetter(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 active:bg-gray-200 transition-colors"
+            aria-label="개발자 레터"
+          >
+            <span className="text-[13px]">✉️</span>
+            <span className="text-[12px] font-medium text-gray-500">개발자 레터</span>
+          </button>
+        )}
       </header>
 
-      {/* 상단 정보 영역 — 스크롤 없음 */}
-      <div className="pt-1">
-        <MyFridgeSection
-          ingredients={ingredients}
-          isLoading={loadingIngredients}
-          onClickAll={() => router.push('/rescue-list')}
-          onClickItem={() => router.push('/rescue-list')}
-          onClickAdd={() => router.push('/ai-recognition')}
-        />
+      {/* 전체 스크롤 영역 */}
+      <div className="flex-1 overflow-y-auto no-scrollbar" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
 
-        <TodayRecommendedRecipes
-          fridgeIngredients={ingredients}
-          recipes={recommendedRecipes}
-          isLoading={loadingRecipes}
-          onClickRecipe={(recipe) => {
-            const chatRecipe = (recipe as RecommendedRecipe & { _chatRecipe?: ChatRecipe })._chatRecipe
-            if (chatRecipe) setSelectedRecipe(chatRecipe)
-            router.push('/recipe')
-          }}
-          onClickViewMore={() => router.push('/chatbot')}
-        />
-      </div>
+        {/* 탐정 배너 */}
+        {showDetective && (
+          <div
+            style={{
+              overflow: 'hidden',
+              maxHeight: dismissingDetective ? '0px' : '600px',
+              opacity: dismissingDetective ? 0 : 1,
+              transform: dismissingDetective ? 'translateY(-12px)' : 'translateY(0)',
+              transition: dismissingDetective
+                ? 'transform 0.25s ease, opacity 0.2s ease, max-height 0.45s ease 0.15s'
+                : 'none',
+            }}
+          >
+            <DetectiveSummaryHero
+              ingredients={ingredients}
+              suggestedRecipeName={recommendedRecipes[0]?.name}
+              onClickFindRecipeWithDetective={() => router.push('/chatbot')}
+              onDismiss={handleDismissDetective}
+            />
+          </div>
+        )}
 
-      {/* 하단 캐릭터 영역 — 남은 공간 채우며 하단 고정 */}
-      <div className="flex-1 min-h-0">
-        <DetectiveOfficeSection
-          onClick={() => router.push('/chatbot')}
-        />
+        {/* 탭 헤더 */}
+        <div className="flex relative px-4 bg-white sticky top-0 z-10" style={{ boxShadow: '0 1px 0 0 #f3f4f6', transform: 'translateZ(0)' }}>
+          {(['자취 유튜버 인기 레시피', '지금 재료로 만들 수 있어요'] as const).map((label, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveTab(i as 0 | 1)}
+              className={`flex-1 py-3 text-[14px] font-semibold transition-colors ${
+                activeTab === i ? 'text-gray-900' : 'text-gray-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <div
+            className="absolute bottom-0 h-[2px] bg-gray-900 transition-all duration-200"
+            style={{ width: '50%', left: `${activeTab * 50}%` }}
+          />
+        </div>
+
+        {/* 탭 콘텐츠 */}
+        {activeTab === 0 && <SoloCookingSection />}
+        {activeTab === 1 && (
+          <TodayRecommendedRecipes
+            fridgeIngredients={ingredients}
+            recipes={recommendedRecipes}
+            isLoading={loadingRecipes}
+            onClickRecipe={(recipe) => {
+              const chatRecipe = (recipe as RecommendedRecipe & { _chatRecipe?: ChatRecipe })._chatRecipe
+              if (chatRecipe) setSelectedRecipe(chatRecipe)
+              router.push('/recipe')
+            }}
+            onClickViewMore={() => router.push('/chatbot')}
+          />
+        )}
       </div>
 
       {/* 하단 고정 네비 */}
       <BottomNavigation active="home" />
 
-      {/* 개발자 레터 모달 */}
-      {showLetter && (
+      {/* 개발자 레터 모달 — 임시 비활성화 */}
+      {false && showLetter && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
           onClick={closeLetter}

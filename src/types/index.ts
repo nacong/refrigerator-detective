@@ -1,7 +1,7 @@
 // 앱 전체에서 사용하는 타입 정의
 
 export type IngredientLocation = '냉장실' | '냉동실' | '실온'
-export type IngredientCategory = '채소/과일' | '육류/해산물' | '유제품/계란' | '양념/소스' | '반조리식품' | '남은음식/반찬' | '기타'
+export type IngredientCategory = '채소/버섯' | '과일' | '육류/해산물' | '달걀/유제품' | '두부/콩류' | '밥/면/빵' | '김치/반찬' | '가공식품' | '양념/소스' | '기타'
 
 export interface Ingredient {
   id: string

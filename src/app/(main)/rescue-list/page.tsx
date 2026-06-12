@@ -1,16 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import MobileContainer from '@/components/layout/MobileContainer'
 import BottomNavigation from '@/components/BottomNavigation'
-import ExpiryBadge from '@/components/ui/ExpiryBadge'
 import { useIngredients, useDeleteIngredient } from '@/hooks/useIngredients'
 import { useQueryClient } from '@tanstack/react-query'
-import { getCoupangSearchUrl } from '@/lib/coupang'
 import type { Ingredient, IngredientLocation, IngredientCategory } from '@/types'
+import { CATEGORY_ORDER, CATEGORY_META } from '@/lib/categories'
 
-// 마일스톤 정의
+// ──────────────────────── constants ────────────────────────
+
+const VIEW_MODE_KEY = 'rd_ingredient_view_mode'
+
 const MILESTONES: Record<number, { emoji: string; title: string }> = {
   1:  { emoji: '🌱', title: '첫 냉털 달성!' },
   5:  { emoji: '🥕', title: '냉털 초보 달성!' },
@@ -19,75 +21,34 @@ const MILESTONES: Record<number, { emoji: string; title: string }> = {
   50: { emoji: '👑', title: '냉털 마스터 달성!' },
 }
 
-// 카테고리 — 신선도 순 (유통기한 짧은 것부터)
-const CATEGORIES: { key: IngredientCategory; icon: string; color: string; badgeClass: string }[] = [
-  { key: '채소/과일',   icon: '🥬', color: 'bg-green-50',  badgeClass: 'bg-green-100 text-green-700' },
-  { key: '육류/해산물', icon: '🥩', color: 'bg-red-50',    badgeClass: 'bg-red-100 text-red-600' },
-  { key: '유제품/계란', icon: '🥛', color: 'bg-yellow-50', badgeClass: 'bg-yellow-100 text-yellow-700' },
-  { key: '반조리식품',    icon: '🍞', color: 'bg-orange-50',  badgeClass: 'bg-orange-100 text-orange-700' },
-  { key: '남은음식/반찬', icon: '🍱', color: 'bg-purple-50', badgeClass: 'bg-purple-100 text-purple-700' },
-  { key: '양념/소스',   icon: '🫙', color: 'bg-gray-50',   badgeClass: 'bg-gray-100 text-gray-600' },
-  { key: '기타',        icon: '📦', color: 'bg-gray-50',   badgeClass: 'bg-gray-100 text-gray-500' },
+const LOCATIONS: { key: IngredientLocation; icon: string; label: string }[] = [
+  { key: '냉장실', icon: '❄️', label: '냉장실' },
+  { key: '냉동실', icon: '🧊', label: '냉동실' },
+  { key: '실온',   icon: '🗄️', label: '실온 보관' },
 ]
 
-// 카테고리별 추천 재료 (한국 요리 사용 빈도 기준)
-const RECOMMENDED: Record<IngredientCategory, { name: string; emoji: string; percent: number }[]> = {
-  '채소/과일':   [
-    { name: '대파', emoji: '🌿', percent: 78 },
-    { name: '마늘', emoji: '🧄', percent: 85 },
-    { name: '양파', emoji: '🧅', percent: 82 },
-    { name: '당근', emoji: '🥕', percent: 65 },
-    { name: '감자', emoji: '🥔', percent: 71 },
-    { name: '청양고추', emoji: '🌶️', percent: 58 },
-  ],
-  '육류/해산물': [
-    { name: '달걀', emoji: '🥚', percent: 91 },
-    { name: '돼지고기', emoji: '🥩', percent: 72 },
-    { name: '닭가슴살', emoji: '🍗', percent: 68 },
-    { name: '새우', emoji: '🦐', percent: 55 },
-    { name: '참치캔', emoji: '🐟', percent: 61 },
-  ],
-  '유제품/계란': [
-    { name: '버터', emoji: '🧈', percent: 61 },
-    { name: '슬라이스치즈', emoji: '🧀', percent: 58 },
-    { name: '우유', emoji: '🥛', percent: 73 },
-    { name: '플레인요거트', emoji: '🍶', percent: 44 },
-  ],
-  '양념/소스':   [
-    { name: '간장', emoji: '🍶', percent: 89 },
-    { name: '참기름', emoji: '🫙', percent: 77 },
-    { name: '고추장', emoji: '🌶️', percent: 71 },
-    { name: '된장', emoji: '🫙', percent: 65 },
-    { name: '굴소스', emoji: '🫙', percent: 52 },
-  ],
-  '반조리식품':    [
-    { name: '두부', emoji: '⬜', percent: 69 },
-    { name: '어묵', emoji: '🍢', percent: 56 },
-    { name: '김', emoji: '🟫', percent: 63 },
-    { name: '떡', emoji: '🍡', percent: 48 },
-  ],
-  '남은음식/반찬': [],
-  '기타':        [
-    { name: '식용유', emoji: '🫙', percent: 92 },
-    { name: '소금', emoji: '🧂', percent: 95 },
-    { name: '후추', emoji: '🌑', percent: 81 },
-    { name: '설탕', emoji: '🍬', percent: 76 },
-  ],
+// ──────────────────────── helpers ────────────────────────
+
+function daysUntilExpiry(expiryDate: string | undefined | null): number | null {
+  if (!expiryDate) return null
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const target = new Date(expiryDate); target.setHours(0, 0, 0, 0)
+  return Math.round((target.getTime() - today.getTime()) / 86400000)
 }
 
-// 위치 뱃지
-const LOCATION_META: Record<IngredientLocation, { icon: string; label: string }> = {
-  냉장실: { icon: '❄️', label: '냉장실' },
-  냉동실: { icon: '🧊', label: '냉동실' },
-  실온:   { icon: '🌡️', label: '실온' },
+function isExpiredIngredient(ing: Ingredient): boolean {
+  const d = daysUntilExpiry(ing.expiryDate)
+  return d !== null && d < 0
 }
 
-interface Toast {
-  id: number
-  name: string
-  count: number
-  isMilestone: boolean
+function parseQuantityValue(quantity: string): number {
+  const m = quantity.match(/\d+/)
+  return m ? parseInt(m[0], 10) : 0
 }
+
+// ──────────────────────── page ────────────────────────
+
+interface ToastItem { id: number; name: string; count: number; isMilestone: boolean }
 
 export default function RescueListPage() {
   const router = useRouter()
@@ -95,28 +56,50 @@ export default function RescueListPage() {
   const { data: ingredients = [], isLoading } = useIngredients()
   const deleteIngredient = useDeleteIngredient()
 
-  const [toasts, setToasts] = useState<Toast[]>([])
-  // 아코디언 상태 — 기본 전체 닫힘
-  const [collapsed, setCollapsed] = useState<Record<IngredientCategory, boolean>>({
-    '채소/과일': true,
-    '육류/해산물': true,
-    '유제품/계란': true,
-    '반조리식품': true,
-    '남은음식/반찬': true,
-    '양념/소스': true,
-    '기타': true,
+  const [viewMode, setViewMode] = useState<'all' | 'category'>(() => {
+    try { return localStorage.getItem(VIEW_MODE_KEY) === 'category' ? 'category' : 'all' }
+    catch { return 'all' }
   })
-  // 위치/카테고리 편집 바텀시트
+  const setView = (m: 'all' | 'category') => {
+    setViewMode(m)
+    try { localStorage.setItem(VIEW_MODE_KEY, m) } catch { /* ignore */ }
+  }
+
+  const [sort, setSort] = useState<'expiry' | 'quantity'>('expiry')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [discardTarget, setDiscardTarget] = useState<Ingredient | null>(null)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
   const [editTarget, setEditTarget] = useState<Ingredient | null>(null)
   const [editLocation, setEditLocation] = useState<IngredientLocation>('냉장실')
   const [editCategory, setEditCategory] = useState<IngredientCategory>('기타')
+  const [editExpiryDate, setEditExpiryDate] = useState<string>('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [showAddSheet, setShowAddSheet] = useState(false)
 
-  const showToast = (toast: Toast) => {
+  const sorted = useMemo(() => {
+    const expired = ingredients.filter(isExpiredIngredient)
+      .sort((a, b) => (daysUntilExpiry(a.expiryDate) ?? 0) - (daysUntilExpiry(b.expiryDate) ?? 0))
+    const active = ingredients.filter((i) => !isExpiredIngredient(i))
+    if (sort === 'expiry') {
+      active.sort((a, b) => {
+        const aN = daysUntilExpiry(a.expiryDate) ?? Infinity
+        const bN = daysUntilExpiry(b.expiryDate) ?? Infinity
+        return aN - bN
+      })
+    } else {
+      active.sort((a, b) => parseQuantityValue(b.quantity) - parseQuantityValue(a.quantity))
+    }
+    return [...expired, ...active]
+  }, [ingredients, sort])
+
+  const selectedItems = useMemo(
+    () => ingredients.filter((i) => selectedIds.has(i.id)),
+    [ingredients, selectedIds]
+  )
+
+  const showToast = (toast: ToastItem) => {
     setToasts((prev) => [...prev, toast])
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== toast.id))
-    }, 2800)
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== toast.id)), 2800)
   }
 
   const handleDelete = (ingredient: Ingredient) => {
@@ -127,22 +110,38 @@ export default function RescueListPage() {
           if (res.ok) {
             const { cleared_count } = await res.json()
             queryClient.invalidateQueries({ queryKey: ['user-stats'] })
-            showToast({
-              id: Date.now(),
-              name: ingredient.name,
-              count: cleared_count,
-              isMilestone: !!MILESTONES[cleared_count],
-            })
+            showToast({ id: Date.now(), name: ingredient.name, count: cleared_count, isMilestone: !!MILESTONES[cleared_count] })
           }
-        } catch { /* 실패해도 무시 */ }
+        } catch { /* ignore */ }
+        setSelectedIds((s) => { const next = new Set(s); next.delete(ingredient.id); return next })
       },
     })
+  }
+
+  const handleDiscardConfirm = () => {
+    if (!discardTarget) return
+    handleDelete(discardTarget)
+    setDiscardTarget(null)
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  const handleCardClick = (ing: Ingredient) => {
+    if (isExpiredIngredient(ing)) setDiscardTarget(ing)
+    else toggleSelect(ing.id)
   }
 
   const openEdit = (ingredient: Ingredient) => {
     setEditTarget(ingredient)
     setEditLocation(ingredient.location ?? '냉장실')
     setEditCategory(ingredient.category ?? '기타')
+    setEditExpiryDate(ingredient.expiryDate ?? '')
   }
 
   const handleSaveEdit = async () => {
@@ -152,7 +151,7 @@ export default function RescueListPage() {
       await fetch('/api/supabase/ingredients', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editTarget.id, location: editLocation, category: editCategory }),
+        body: JSON.stringify({ id: editTarget.id, location: editLocation, category: editCategory, expiryDate: editExpiryDate }),
       })
       queryClient.invalidateQueries({ queryKey: ['ingredients'] })
     } catch { /* ignore */ } finally {
@@ -161,187 +160,137 @@ export default function RescueListPage() {
     }
   }
 
-  const toggleCollapse = (cat: IngredientCategory) => {
-    setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }))
-  }
-
-  // 알림 카드 계산
-  const [alertDismissed, setAlertDismissed] = useState(false)
-
-  const alert = (() => {
-    if (alertDismissed || ingredients.length === 0) return null
-    const todayMs = new Date().setHours(0, 0, 0, 0)
-
-    // 1순위: 1~2일 이내 임박 재료
-    const urgent = [...ingredients]
-      .map((i) => ({ ...i, days: Math.ceil((new Date(i.expiryDate).setHours(0, 0, 0, 0) - todayMs) / 86400000) }))
-      .filter((i) => i.days >= 0 && i.days <= 2)
-      .sort((a, b) => a.days - b.days)[0]
-
-    if (urgent) {
-      const label = urgent.days === 0 ? '오늘이 마지막이에요!' : `${urgent.days}일 남았어요!`
-      return { type: 'urgent' as const, ingredient: urgent, label }
-    }
-
-    // 2순위: 3일 이내 등록된 재료 → 최근 구매
-    const recent = [...ingredients]
-      .filter((i) => {
-        if (!i.createdAt) return false
-        const diffDays = (Date.now() - new Date(i.createdAt).getTime()) / 86400000
-        return diffDays <= 3
-      })
-      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())[0]
-    if (recent) return { type: 'recent' as const, ingredient: recent, label: '' }
-
-    return null
-  })()
-
   return (
     <MobileContainer fullHeight>
-      {/* 헤더 */}
-      <header className="px-4 pb-3 border-b border-gray-100" style={{ paddingTop: 'max(32px, calc(env(safe-area-inset-top) + 16px))' }}>
+      <header
+        className="px-4 pb-3 border-b border-gray-100 flex-shrink-0"
+        style={{ paddingTop: 'max(32px, calc(env(safe-area-inset-top) + 16px))' }}
+      >
         <h1 className="text-[22px] font-bold text-gray-900">나의 식재료</h1>
-        <p className="text-[12px] text-gray-400 mt-0.5">재료를 탭하면 위치·카테고리를 바꿀 수 있어요</p>
       </header>
 
-      {/* 콘텐츠 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 no-scrollbar space-y-3">
+      <div
+        className="flex-1 overflow-y-auto no-scrollbar"
+        style={{ padding: selectedItems.length > 0 ? '14px 16px 168px' : '14px 16px 110px' }}
+      >
+        {/* Count + Sort */}
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[13.5px] text-gray-500 m-0">
+            <b className="text-gray-800 font-bold">{ingredients.length}종</b> 보관 중
+          </p>
+          <SortMenu sort={sort} setSort={setSort} />
+        </div>
 
-        {/* 알림 카드 */}
-        {!isLoading && alert && (
-          <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
-            alert.type === 'urgent'
-              ? 'bg-orange-50 border border-orange-200'
-              : 'bg-[#F0FBF5] border border-[#B6EDD4]'
-          }`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={alert.type === 'urgent' ? '/images/detective_warning.png' : '/images/detective_idea.png'}
-              alt="냉탐이"
-              className="w-11 h-11 object-contain flex-shrink-0"
-            />
-            <p className="text-[13px] leading-snug flex-1 font-medium text-gray-800">
-              {alert.type === 'urgent'
-                ? <><span className="font-bold text-orange-500">{alert.ingredient.name}</span> 유통기한이 {alert.label}</>
-                : <>최근에 구매한 <span className="font-bold text-[#13AF70]">{alert.ingredient.name}</span> 잘 쓰고 계신가요?</>
-              }
-            </p>
-            <button
-              onClick={() => setAlertDismissed(true)}
-              className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-black/10 active:bg-black/20"
-              aria-label="닫기"
-            >
-              <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-                <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* View mode toggle */}
+        <ViewModeToggle value={viewMode} onChange={setView} />
 
+        {/* Content */}
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5 mt-3.5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-[110px] bg-gray-100 rounded-2xl animate-pulse" />
+              <div key={i} className="h-[124px] bg-gray-100 rounded-[14px] animate-pulse" />
             ))}
           </div>
         ) : (
-          <>
-            {CATEGORIES.map(({ key, icon, color }) => {
-              // 카테고리 필터 후 날짜 오름차순 정렬
-              const group = ingredients
-                .filter((i) => (i.category ?? '기타') === key)
-                .sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime())
-              const isCollapsed = collapsed[key]
-              return (
-                <div key={key} className={`${color} rounded-2xl overflow-hidden`}>
-                  {/* 섹션 헤더 */}
-                  <button
-                    onClick={() => toggleCollapse(key)}
-                    className="w-full flex items-center justify-between px-4 py-3 active:opacity-80 transition-opacity"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{icon}</span>
-                      <span className="text-[14px] font-bold text-gray-800">{key}</span>
-                      <span className="text-[11px] text-gray-400 bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                        {group.length}개
-                      </span>
-                    </div>
-                    <svg
-                      width="16" height="16" viewBox="0 0 24 24" fill="none"
-                      className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                    >
-                      <path d="M6 9l6 6 6-6" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-
-                  {/* 그리드 */}
-                  {!isCollapsed && (
-                    <div className="pb-3">
-                      <div className="px-3">
-                        {group.length === 0 ? (
-                          <button
-                            onClick={() => router.push('/ai-recognition?from=rescue-list')}
-                            className="w-full flex flex-col items-center justify-center gap-1.5 py-5 border-2 border-dashed border-gray-200 rounded-xl active:bg-white/50 transition-colors"
-                          >
-                            <span className="text-xl text-gray-300">+</span>
-                            <p className="text-xs text-gray-400">아직 없어요 — 추가해볼까요?</p>
-                          </button>
-                        ) : (
-                          <div className="grid grid-cols-3 gap-2">
-                            {group.map((ingredient) => (
-                              <IngredientCard
-                                key={ingredient.id}
-                                ingredient={ingredient}
-                                onDelete={() => handleDelete(ingredient)}
-                                onTap={() => openEdit(ingredient)}
-                              />
-                            ))}
-                            <button
-                              onClick={() => router.push('/ai-recognition?from=rescue-list')}
-                              className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl active:bg-white/50 transition-colors"
-                              style={{ minHeight: 100 }}
-                            >
-                              <span className="text-xl text-gray-300 font-light">+</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 추천 재료 */}
-                      <RecommendedRow category={key} existingIngredients={ingredients} />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </>
+          <div className="mt-3.5">
+            {viewMode === 'all' ? (
+              <div className="grid grid-cols-3 gap-2.5">
+                {sorted.map((ing) => (
+                  <InventoryCard
+                    key={ing.id}
+                    ingredient={ing}
+                    expired={isExpiredIngredient(ing)}
+                    selected={selectedIds.has(ing.id)}
+                    onClick={() => handleCardClick(ing)}
+                    onEdit={() => openEdit(ing)}
+                    onDelete={() => handleDelete(ing)}
+                  />
+                ))}
+                <AddInventoryCard onClick={() => setShowAddSheet(true)} />
+              </div>
+            ) : (
+              <>
+                <CategoryAccordion
+                  items={ingredients}
+                  selectedIds={selectedIds}
+                  onCardClick={handleCardClick}
+                  onCardEdit={openEdit}
+                  onDelete={handleDelete}
+                />
+                <button
+                  onClick={() => setShowAddSheet(true)}
+                  className="w-full flex items-center justify-center gap-2 mt-3 py-3.5 border-2 border-dashed border-gray-200 rounded-2xl text-[13.5px] font-semibold text-gray-400 active:opacity-70 transition-opacity"
+                >
+                  <span className="text-xl leading-none" aria-hidden>+</span> 식재료 추가
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
+      {/* Floating CTA */}
+      {selectedItems.length > 0 && (
+        <div className="absolute left-0 right-0 bottom-[84px] z-30 px-4 pointer-events-none">
+          <button
+            className="w-full min-h-[56px] pointer-events-auto flex flex-col items-center justify-center gap-0.5 bg-[#13AF70] rounded-2xl text-white active:scale-[0.98] transition-transform"
+            style={{ boxShadow: '0 8px 20px rgba(19,175,112,.32)' }}
+            onClick={() => router.push('/chatbot')}
+          >
+            <span className="text-[14px] font-bold">식재료로 레시피 검색하기</span>
+            <span className="text-[11px] font-medium" style={{ opacity: 0.85 }}>
+              선택한 식재료 {selectedItems.length}개
+            </span>
+          </button>
+        </div>
+      )}
+
       <BottomNavigation active="fridge" />
 
-      {/* 위치/카테고리 편집 바텀시트 */}
+      {/* Discard expired modal */}
+      {discardTarget && (
+        <DiscardExpiredModal
+          ingredient={discardTarget}
+          onConfirm={handleDiscardConfirm}
+          onClose={() => setDiscardTarget(null)}
+        />
+      )}
+
+      {/* Add ingredient sheet */}
+      {showAddSheet && (
+        <AddIngredientSheet
+          onClose={() => setShowAddSheet(false)}
+          onCamera={() => { setShowAddSheet(false); router.push('/ai-recognition?from=rescue-list') }}
+          onGallery={() => { setShowAddSheet(false); router.push('/ai-recognition?from=rescue-list') }}
+          onManual={() => { setShowAddSheet(false); router.push('/ai-recognition?from=rescue-list') }}
+        />
+      )}
+
+      {/* Edit bottom sheet */}
       {editTarget && (
         <>
           <div className="fixed inset-0 bg-black/30 z-30" onClick={() => setEditTarget(null)} />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-40 px-5 pt-6 pb-10 safe-bottom max-w-[430px] mx-auto">
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-40 px-5 pt-6 pb-10 max-w-[430px] mx-auto">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
             <div className="flex items-center gap-2 mb-5">
               <span className="text-2xl">{editTarget.emoji}</span>
               <p className="text-[15px] font-bold text-gray-900">{editTarget.name}</p>
             </div>
-
-            {/* 위치 선택 */}
+            <p className="text-xs font-semibold text-gray-500 mb-2">유통기한</p>
+            <input
+              type="date"
+              value={editExpiryDate}
+              onChange={(e) => setEditExpiryDate(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#13AF70] mb-5"
+            />
             <p className="text-xs font-semibold text-gray-500 mb-2">보관 위치</p>
             <div className="flex gap-2 mb-5">
-              {(Object.entries(LOCATION_META) as [IngredientLocation, { icon: string; label: string }][]).map(([key, { icon, label }]) => (
+              {LOCATIONS.map(({ key, icon, label }) => (
                 <button
                   key={key}
                   onClick={() => setEditLocation(key)}
                   className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-colors ${
-                    editLocation === key
-                      ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]'
-                      : 'border-gray-200 bg-white text-gray-500'
+                    editLocation === key ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]' : 'border-gray-200 bg-white text-gray-500'
                   }`}
                 >
                   <span className="text-lg">{icon}</span>
@@ -349,25 +298,20 @@ export default function RescueListPage() {
                 </button>
               ))}
             </div>
-
-            {/* 카테고리 선택 */}
             <p className="text-xs font-semibold text-gray-500 mb-2">카테고리</p>
             <div className="grid grid-cols-3 gap-2 mb-6">
-              {CATEGORIES.map(({ key: cat, icon }) => (
+              {CATEGORY_ORDER.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setEditCategory(cat)}
                   className={`py-2 px-1 rounded-xl border-2 text-[11px] font-medium transition-colors ${
-                    editCategory === cat
-                      ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]'
-                      : 'border-gray-200 bg-white text-gray-500'
+                    editCategory === cat ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]' : 'border-gray-200 bg-white text-gray-500'
                   }`}
                 >
-                  {icon} {cat}
+                  {CATEGORY_META[cat].icon} {cat}
                 </button>
               ))}
             </div>
-
             <button
               onClick={handleSaveEdit}
               disabled={isSavingEdit}
@@ -379,7 +323,7 @@ export default function RescueListPage() {
         </>
       )}
 
-      {/* 토스트 스택 */}
+      {/* Toasts */}
       <div className="fixed bottom-24 left-0 right-0 flex flex-col items-center gap-2 px-6 z-50 pointer-events-none">
         {toasts.map((toast) => (
           <div
@@ -411,85 +355,479 @@ export default function RescueListPage() {
   )
 }
 
-// 식재료 카드 컴포넌트
-function IngredientCard({
+// ──────────────────────── ViewModeToggle ────────────────────────
+
+function ViewModeToggle({
+  value,
+  onChange,
+}: {
+  value: 'all' | 'category'
+  onChange: (m: 'all' | 'category') => void
+}) {
+  return (
+    <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
+      {(['all', 'category'] as const).map((mode) => {
+        const active = value === mode
+        return (
+          <button
+            key={mode}
+            onClick={() => onChange(mode)}
+            className={`flex-1 h-[34px] rounded-[9px] text-[13px] transition-all duration-150 ${
+              active ? 'bg-white text-[#13AF70] font-bold shadow-sm' : 'text-gray-400 font-medium'
+            }`}
+          >
+            {mode === 'all' ? '전체 보기' : '카테고리 보기'}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ──────────────────────── SortMenu ────────────────────────
+
+function SortMenu({
+  sort,
+  setSort,
+}: {
+  sort: 'expiry' | 'quantity'
+  setSort: (s: 'expiry' | 'quantity') => void
+}) {
+  const [open, setOpen] = useState(false)
+  const options: { key: 'expiry' | 'quantity'; label: string }[] = [
+    { key: 'expiry',   label: '기한임박순' },
+    { key: 'quantity', label: '양이 많은순' },
+  ]
+  const current = options.find((o) => o.key === sort)!
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-[12.5px] font-medium text-gray-500"
+      >
+        {current.label}
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} className="fixed inset-0 z-30" />
+          <div
+            className="absolute top-[calc(100%+6px)] right-0 z-40 bg-white border border-gray-200 rounded-xl overflow-hidden min-w-[132px]"
+            style={{ boxShadow: '0 8px 24px rgba(17,24,39,.08)' }}
+          >
+            {options.map((opt) => {
+              const active = opt.key === sort
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => { setSort(opt.key); setOpen(false) }}
+                  className={`w-full px-3.5 py-2.5 text-left text-[13px] flex items-center justify-between gap-2 ${
+                    active ? 'bg-[#E8F9F1] text-[#0E8F5B] font-semibold' : 'bg-white text-gray-700 font-medium'
+                  }`}
+                >
+                  {opt.label}
+                  {active && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="#0E8F5B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ──────────────────────── ExpiryByDays ────────────────────────
+
+function ExpiryByDays({ days }: { days: number }) {
+  let bg: string, fg: string, bd: string, label: string
+  if (days < 0) {
+    bg = '#EDE3FF'; fg = '#6B4FCB'; bd = '#B9A4F2'; label = `D+${Math.abs(days)}`
+  } else if (days === 0) {
+    bg = '#FEE2E2'; fg = '#DC2626'; bd = '#FECACA'; label = 'D-day'
+  } else if (days <= 3) {
+    bg = '#FEE2E2'; fg = '#DC2626'; bd = '#FECACA'; label = `D-${days}`
+  } else if (days <= 7) {
+    bg = '#FEF3C7'; fg = '#D97706'; bd = '#FDE68A'; label = `D-${days}`
+  } else {
+    bg = '#DCFCE7'; fg = '#16A34A'; bd = '#BBF7D0'; label = `D-${days}`
+  }
+  return (
+    <span style={{
+      display: 'inline-block', fontSize: 11, fontWeight: 800, letterSpacing: '.02em',
+      color: fg, background: bg, border: `1.5px solid ${bd}`,
+      borderRadius: 9999, padding: '2px 8px', whiteSpace: 'nowrap', lineHeight: 1.2,
+    }}>
+      {label}
+    </span>
+  )
+}
+
+// ──────────────────────── InventoryCard ────────────────────────
+// Long press (600ms) opens edit sheet. Short tap = select / open discard modal.
+
+function InventoryCard({
   ingredient,
+  expired,
+  selected,
+  onClick,
+  onEdit,
   onDelete,
-  onTap,
 }: {
   ingredient: Ingredient
+  expired: boolean
+  selected: boolean
+  onClick: () => void
+  onEdit: () => void
   onDelete: () => void
-  onTap: () => void
 }) {
-  const loc = ingredient.location ?? '냉장실'
-  const { icon: locIcon } = LOCATION_META[loc as IngredientLocation] ?? LOCATION_META['냉장실']
+  const days = daysUntilExpiry(ingredient.expiryDate)
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didHold = useRef(false)
+
+  const startHold = () => {
+    didHold.current = false
+    holdTimer.current = setTimeout(() => {
+      didHold.current = true
+      onEdit()
+    }, 600)
+  }
+  const endHold = () => {
+    if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null }
+  }
+  const handleClick = () => {
+    if (didHold.current) { didHold.current = false; return }
+    onClick()
+  }
+
+  const palette = expired
+    ? { bg: '#F3EEFF', bd: '#B9A4F2', text: '#6B4FCB', meta: '#8B72D8' }
+    : selected
+    ? { bg: '#E8F9F1', bd: '#13AF70', text: '#0E8F5B', meta: '#0E8F5B' }
+    : { bg: '#fff',    bd: '#E5E7EB', text: '#374151', meta: '#9CA3AF' }
 
   return (
     <button
-      onClick={onTap}
-      className="relative bg-white border border-gray-200 rounded-xl px-2 pt-2 pb-2.5 flex flex-col items-center gap-1 active:scale-95 transition-transform text-left w-full"
-      style={{ minHeight: 100 }}
+      type="button"
+      onTouchStart={startHold}
+      onTouchEnd={endHold}
+      onMouseDown={startHold}
+      onMouseUp={endHold}
+      onMouseLeave={endHold}
+      onClick={handleClick}
+      style={{
+        position: 'relative', cursor: 'pointer', fontFamily: 'inherit',
+        background: palette.bg, border: `1px solid ${palette.bd}`, borderRadius: 14,
+        padding: '12px 8px 10px', minHeight: 124,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+        transition: 'background 150ms ease, border-color 150ms ease',
+        boxShadow: expired
+          ? '0 1px 2px rgba(123,92,214,.16)'
+          : selected
+          ? '0 1px 2px rgba(19,175,112,.18)'
+          : '0 1px 2px rgba(0,0,0,.05)',
+        width: '100%',
+      }}
     >
-      {/* 상단: D-day 뱃지(좌) + 삭제(우) */}
-      <div className="w-full flex items-center justify-between">
-        <ExpiryBadge expiryDate={ingredient.expiryDate} size="sm" />
+      {/* Corner badge */}
+      {expired ? (
+        <span aria-hidden style={{
+          position: 'absolute', top: 6, right: 6, width: 20, height: 20,
+          borderRadius: 9999, background: '#7B5CD6', color: '#fff',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 700, lineHeight: 1,
+        }}>!</span>
+      ) : selected ? (
+        <span aria-hidden style={{
+          position: 'absolute', top: 6, right: 6, width: 20, height: 20,
+          borderRadius: 9999, background: '#13AF70', color: '#fff',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </span>
+      ) : (
         <span
           role="button"
           aria-label={`${ingredient.name} 삭제`}
+          tabIndex={0}
           onClick={(e) => { e.stopPropagation(); onDelete() }}
-          className="w-4 h-4 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] active:bg-red-100 active:text-red-400"
-        >
-          ✕
-        </span>
-      </div>
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onDelete() } }}
+          style={{
+            position: 'absolute', top: 4, right: 4, width: 20, height: 20,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 9999, background: 'transparent', color: '#D1D5DB',
+            cursor: 'pointer', fontSize: 11, lineHeight: 1,
+          }}
+        >✕</span>
+      )}
 
-      {/* 이모지 */}
-      <span className="text-[30px] leading-none">{ingredient.emoji}</span>
+      <span style={{
+        fontSize: 30, lineHeight: 1, marginTop: 2,
+        filter: expired ? 'grayscale(.35)' : 'none',
+      }}>
+        {ingredient.emoji}
+      </span>
 
-      {/* 재료명 */}
-      <p className="text-[11px] font-bold text-gray-900 truncate w-full text-center">{ingredient.name}</p>
+      <p style={{
+        fontSize: 12.5, fontWeight: 600, color: palette.text,
+        margin: '2px 0 0', textAlign: 'center', width: '100%',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {ingredient.name}
+      </p>
 
-      {/* 위치 뱃지 */}
-      <span className="text-[9px] text-gray-400">{locIcon} {loc}</span>
+      <p style={{ fontSize: 11, color: palette.meta, margin: 0 }}>{ingredient.quantity}</p>
+
+      {days !== null ? (
+        <ExpiryByDays days={days} />
+      ) : (
+        <span style={{
+          display: 'inline-block', fontSize: 10.5, fontWeight: 600,
+          color: '#9CA3AF', background: '#F3F4F6', border: '1px solid #E5E7EB',
+          borderRadius: 9999, padding: '1px 8px', whiteSpace: 'nowrap',
+        }}>날짜 없음</span>
+      )}
     </button>
   )
 }
 
-// 카테고리별 추천 재료 행
-function RecommendedRow({
-  category,
-  existingIngredients,
-}: {
-  category: IngredientCategory
-  existingIngredients: Ingredient[]
-}) {
-  const existingNames = new Set(existingIngredients.map((i) => i.name.toLowerCase()))
-  const candidates = RECOMMENDED[category] ?? []
-  const toShow = candidates.filter((r) => !existingNames.has(r.name.toLowerCase())).slice(0, 4)
+// ──────────────────────── AddInventoryCard ────────────────────────
 
-  if (toShow.length === 0) return null
+function AddInventoryCard({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="식재료 추가"
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 6, background: 'transparent',
+        border: '2px dashed #E5E7EB', borderRadius: 14,
+        padding: 12, minHeight: 124, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+      }}
+    >
+      <span aria-hidden style={{
+        width: 32, height: 32, borderRadius: 9999, background: '#F3F4F6',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        color: '#9CA3AF', fontSize: 20, lineHeight: 1,
+      }}>+</span>
+      <span style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 500 }}>식재료 추가</span>
+    </button>
+  )
+}
+
+// ──────────────────────── CategoryAccordion ────────────────────────
+
+function CategoryAccordion({
+  items,
+  selectedIds,
+  onCardClick,
+  onCardEdit,
+  onDelete,
+}: {
+  items: Ingredient[]
+  selectedIds: Set<string>
+  onCardClick: (ing: Ingredient) => void
+  onCardEdit: (ing: Ingredient) => void
+  onDelete: (ing: Ingredient) => void
+}) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(CATEGORY_ORDER.map((cat) => [cat, true]))
+  )
+
+  const groups = useMemo(() => {
+    return CATEGORY_ORDER.map((cat) => ({
+      cat,
+      items: items
+        .filter((i) => (i.category ?? '기타') === cat)
+        .sort((a, b) => {
+          const aN = daysUntilExpiry(a.expiryDate) ?? Infinity
+          const bN = daysUntilExpiry(b.expiryDate) ?? Infinity
+          return aN - bN
+        }),
+    }))
+  }, [items])
 
   return (
-    <div className="mt-2.5 px-3">
-      <p className="text-[10px] text-gray-400 mb-1.5 pl-0.5">없으면 아쉬운 재료</p>
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
-        {toShow.map(({ name, emoji, percent }) => (
-          <a
-            key={name}
-            href={getCoupangSearchUrl(name)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 flex items-center gap-2 bg-white rounded-2xl border border-gray-200 px-3 py-2.5 active:opacity-70 transition-opacity"
-          >
-            <span className="text-[18px] leading-none">{emoji}</span>
-            <div className="flex flex-col">
-              <span className="text-[12px] font-bold text-gray-800 whitespace-nowrap">{name}</span>
-              <span className="text-[10px] text-gray-400 whitespace-nowrap">{percent}%의 음식에 쓰여요</span>
-            </div>
-            <span className="text-[9px] font-black text-[#C00] tracking-tight ml-1 whitespace-nowrap">쿠팡 →</span>
-          </a>
-        ))}
+    <div className="flex flex-col gap-3">
+      {groups.map(({ cat, items: catItems }) => {
+        const isCollapsed = collapsed[cat] ?? false
+        const { icon } = CATEGORY_META[cat]
+        return (
+          <div key={cat} className={`border rounded-2xl overflow-hidden ${catItems.length > 0 ? 'bg-[#F0FBF5] border-[#B6EDD4]' : 'bg-gray-50 border-gray-200'}`}>
+            <button
+              onClick={() => setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }))}
+              className="w-full flex items-center justify-between px-4 py-3 active:opacity-70"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`text-base ${catItems.length === 0 ? 'opacity-40' : ''}`}>{icon}</span>
+                <span className={`text-[14px] font-bold ${catItems.length > 0 ? 'text-gray-800' : 'text-gray-400'}`}>{cat}</span>
+                <span className={`text-[11px] px-2 py-0.5 rounded-full border ${catItems.length > 0 ? 'text-[#13AF70] bg-white border-[#B6EDD4]' : 'text-gray-400 bg-white border-gray-200'}`}>
+                  {catItems.length}개
+                </span>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}>
+                <path d="M6 9l6 6 6-6" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {!isCollapsed && (
+              <div className="px-3 pb-3">
+                {catItems.length === 0 ? (
+                  <p className="text-center text-[12px] text-gray-300 py-4">없음</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {catItems.map((ing) => (
+                      <InventoryCard
+                        key={ing.id}
+                        ingredient={ing}
+                        expired={isExpiredIngredient(ing)}
+                        selected={selectedIds.has(ing.id)}
+                        onClick={() => onCardClick(ing)}
+                        onEdit={() => onCardEdit(ing)}
+                        onDelete={() => onDelete(ing)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ──────────────────────── DiscardExpiredModal ────────────────────────
+
+function DiscardExpiredModal({
+  ingredient,
+  onConfirm,
+  onClose,
+}: {
+  ingredient: Ingredient
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const days = daysUntilExpiry(ingredient.expiryDate)
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center px-7"
+      style={{ background: 'rgba(17,24,39,.45)' }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full bg-white flex flex-col items-center gap-3"
+        style={{ maxWidth: 320, borderRadius: 22, padding: '20px 22px 22px', boxShadow: '0 20px 40px rgba(17,24,39,.25)' }}
+      >
+        <button
+          onClick={onClose}
+          aria-label="닫기"
+          className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 text-base active:bg-gray-100"
+        >✕</button>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/detective_warning.png"
+          alt="냉탐이의 경고"
+          draggable={false}
+          className="w-[132px] h-[132px] object-contain mt-2"
+        />
+
+        <p className="m-0 text-[14px] font-semibold leading-relaxed text-gray-800 text-center break-keep">
+          해당 재료는 소비기한이 만료되었습니다.<br />폐기해주세요!
+        </p>
+
+        <p className="m-0 text-[11.5px] text-gray-400 text-center">
+          {ingredient.emoji} {ingredient.name} · D+{days !== null ? Math.abs(days) : '?'}
+        </p>
+
+        <button
+          onClick={onConfirm}
+          className="w-full mt-1.5 h-12 text-white text-[14px] font-bold rounded-[14px] active:opacity-90 transition-opacity"
+          style={{ background: '#7B5CD6', boxShadow: '0 4px 12px rgba(123,92,214,.32)' }}
+        >
+          폐기완료
+        </button>
       </div>
     </div>
+  )
+}
+
+// ──────────────────────── AddIngredientSheet ────────────────────────
+
+function AddIngredientSheet({
+  onClose,
+  onCamera,
+  onGallery,
+  onManual,
+}: {
+  onClose: () => void
+  onCamera: () => void
+  onGallery: () => void
+  onManual: () => void
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 px-5 pt-5 max-w-[430px] mx-auto"
+        style={{ paddingBottom: 'calc(28px + env(safe-area-inset-bottom))' }}>
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+        <p className="text-[16px] font-bold text-gray-900 mb-4">식재료 추가</p>
+
+        <div className="flex flex-col gap-2.5">
+          <button
+            onClick={onCamera}
+            className="flex items-center gap-3.5 px-4 py-4 rounded-2xl bg-gray-50 border border-gray-200 active:bg-gray-100 transition-colors"
+          >
+            <span className="text-2xl">📷</span>
+            <div className="text-left">
+              <p className="text-[14px] font-bold text-gray-800">사진 찍기</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">카메라로 식재료를 스캔해요</p>
+            </div>
+          </button>
+
+          <button
+            onClick={onGallery}
+            className="flex items-center gap-3.5 px-4 py-4 rounded-2xl bg-gray-50 border border-gray-200 active:bg-gray-100 transition-colors"
+          >
+            <span className="text-2xl">🖼️</span>
+            <div className="text-left">
+              <p className="text-[14px] font-bold text-gray-800">갤러리에서 선택</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">보관함 사진으로 인식해요</p>
+            </div>
+          </button>
+
+          <button
+            onClick={onManual}
+            className="flex items-center gap-3.5 px-4 py-4 rounded-2xl bg-gray-50 border border-gray-200 active:bg-gray-100 transition-colors"
+          >
+            <span className="text-2xl">✏️</span>
+            <div className="text-left">
+              <p className="text-[14px] font-bold text-gray-800">직접 입력</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">이름, 수량, 유통기한을 입력해요</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </>
   )
 }

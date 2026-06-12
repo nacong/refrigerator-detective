@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import type { Ingredient } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -53,12 +53,15 @@ ${ingredientList}
 JSON 배열로만 응답하세요 (다른 텍스트 없이):
 [{"id":"재료id","name":"이름","emoji":"이모지","action":"remove","newQuantity":null}]`
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
   try {
-    const result = await model.generateContent(prompt)
-    const text = result.response.text()
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { thinkingConfig: { thinkingBudget: 0 } },
+    })
+    const text = result.text ?? ''
     const jsonMatch = text.match(/\[[\s\S]*\]/)
     if (!jsonMatch) return NextResponse.json({ updates: [] })
 

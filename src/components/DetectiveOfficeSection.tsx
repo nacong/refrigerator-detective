@@ -12,14 +12,27 @@ interface DetectiveOfficeSectionProps {
   characterSrc?: string
   speechBubbleText?: string
   onClick?: () => void
+  onDismiss?: () => void
 }
 
 export default function DetectiveOfficeSection({
   characterSrc = '/images/detective_recipe.png',
   speechBubbleText = '저를 눌러보세요.\n레시피를 찾아드릴게요!',
   onClick,
+  onDismiss,
 }: DetectiveOfficeSectionProps) {
   return (
+    <div className="relative w-full h-full">
+    {onDismiss && (
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="닫기"
+        className="absolute top-3 right-3 z-20 w-7 h-7 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center text-gray-500 text-[13px] font-medium active:bg-white/90 transition-colors"
+      >
+        ✕
+      </button>
+    )}
     <button
       type="button"
       onClick={onClick}
@@ -106,5 +119,6 @@ export default function DetectiveOfficeSection({
       </div>
 
     </button>
+    </div>
   )
 }

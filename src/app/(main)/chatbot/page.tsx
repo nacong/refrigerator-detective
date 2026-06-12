@@ -8,6 +8,7 @@ import ChatBubble from '@/components/chatbot/ChatBubble'
 import { useChat } from '@/hooks/useChat'
 import { useIngredients } from '@/hooks/useIngredients'
 import type { ChatMessage } from '@/types'
+import { CATEGORY_ORDER, CATEGORY_META } from '@/lib/categories'
 
 export default function ChatbotPage() {
   const router = useRouter()
@@ -19,15 +20,14 @@ export default function ChatbotPage() {
   const initialMessage: ChatMessage = {
     id: 'initial',
     role: 'assistant',
-    content: `안녕하세요, ${userName}님 😊\n저에게 의뢰를 주시면\n맞춤 레시피를 추천해 드릴게요!`,
+    content: `안녕하세요, ${userName}님 😊\n저에게 의뢰를 주시면\n맞춤 레시피를 만들어드릴게요!`,
     createdAt: new Date().toISOString(),
   }
 
   const [inputText, setInputText] = useState('')
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
-  const [recipeMode, setRecipeMode] = useState<'search' | 'generate'>('search')
-  const [loadingMode, setLoadingMode] = useState<'search' | 'generate'>('search')
   const [showIngredientPicker, setShowIngredientPicker] = useState(false)
+  const [pickerView, setPickerView] = useState<'all' | 'category'>('all')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -36,6 +36,14 @@ export default function ChatbotPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
+
+  // 재료 로드 시 전체 선택 초기화 (앱 설치 후 최초 1회)
+  useEffect(() => {
+    if (ingredients.length === 0) return
+    if (localStorage.getItem('rd_chatbot_ingredients_initialized')) return
+    localStorage.setItem('rd_chatbot_ingredients_initialized', '1')
+    setSelectedIngredients(ingredients.map((i) => i.name))
+  }, [ingredients])
 
   // 재료 피커 외부 클릭 시 닫기
   useEffect(() => {
@@ -64,8 +72,7 @@ export default function ChatbotPage() {
     const text = inputText.trim()
     if (!text || isLoading) return
     setInputText('')
-    setLoadingMode(recipeMode)
-    await sendMessage(text, selectedIngredients, recipeMode)
+    await sendMessage(text, selectedIngredients, 'generate')
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -110,38 +117,25 @@ export default function ChatbotPage() {
           <div className="flex justify-start items-start gap-2 mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={loadingMode === 'generate' ? '/images/detective_thinking.png' : '/images/detective_frontview.png'}
+              src="/images/detective_thinking.png"
               alt="냉탐이"
               className="rounded-[14px] object-cover flex-shrink-0"
-              style={loadingMode === 'generate' ? { width: 56, height: 56, marginTop: 4 } : { width: 44, height: 44, marginTop: 6 }}
+              style={{ width: 56, height: 56, marginTop: 4 }}
             />
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-normal text-gray-500 pl-1 mb-0.5">냉탐이</p>
-
-              {loadingMode === 'generate' ? (
-                /* 생성 모드 — 레시피 제작 중 */
-                <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3.5 max-w-[260px]">
-                  <p className="text-[13px] font-bold text-gray-700 mb-1">✨ 생성모드 — 레시피 제작 중!</p>
-                  <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
-                    재료와 조리 방법을 조합하고 있어요.{'\n'}
-                    잠깐만 기다려 주세요 😊
-                  </p>
-                  <div className="flex gap-1.5 items-center">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
-                  </div>
+              <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3.5 max-w-[260px]">
+                <p className="text-[13px] font-bold text-gray-700 mb-1">✨ 레시피 제작 중!</p>
+                <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
+                  재료와 조리 방법을 조합하고 있어요.{'\n'}
+                  잠깐만 기다려 주세요 😊
+                </p>
+                <div className="flex gap-1.5 items-center">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
                 </div>
-              ) : (
-                /* 찾기 모드 — 기본 점점점 */
-                <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3">
-                  <div className="flex gap-1.5 items-center">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -154,8 +148,8 @@ export default function ChatbotPage() {
         <div className="px-4 pt-2 pb-1 flex flex-col items-start gap-1.5">
           <p className="text-[11px] text-gray-400 pl-1">이런 질문은 어때요?</p>
           {[
-            { emoji: '🧹', label: '냉털 레시피 추천해줘.' },
-            { emoji: '🛒', label: '재료 하나만 추가하면 만들 수 있는 맛있는 레시피 추천해줘.' },
+            { emoji: '🧹', label: '냉털 레시피 만들어줘.' },
+            { emoji: '🛒', label: '재료 하나만 추가하면 만들 수 있는 맛있는 레시피 만들어줘.' },
             { emoji: '🍜', label: '지금 있는 재료로 부타동 만들어먹고 싶어' },
           ].map(({ emoji, label }) => (
             <button
@@ -176,14 +170,15 @@ export default function ChatbotPage() {
         {/* 메시지 입력창 + 재료 피커 팝업 */}
         <div className="relative">
 
-          {/* 재료 선택 팝업 (+ 버튼 위 좌하단) */}
+          {/* 재료 선택 팝업 */}
           {showIngredientPicker && (
             <div
               ref={pickerRef}
-              className="absolute bottom-full left-0 mb-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 p-3 z-20"
+              className="absolute bottom-full left-0 mb-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 z-20 flex flex-col"
+              style={{ maxHeight: 320 }}
             >
               {/* 헤더 */}
-              <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
                 <p className="text-xs font-semibold text-gray-700">재료 선택</p>
                 {selectedIngredients.length > 0 && (
                   <button
@@ -195,43 +190,109 @@ export default function ChatbotPage() {
                 )}
               </div>
 
-              {ingredients.length === 0 ? (
-                <p className="text-xs text-gray-400 py-2 text-center">등록된 재료가 없어요</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {/* 전체 선택 */}
+              {/* 뷰 토글 */}
+              <div className="flex mx-3 mb-2 bg-gray-100 rounded-lg p-0.5 flex-shrink-0">
+                {(['all', 'category'] as const).map((v) => (
                   <button
-                    onClick={() => {
-                      const allNames = ingredients.map((i) => i.name)
-                      const allSelected = allNames.every((n) => selectedIngredients.includes(n))
-                      setSelectedIngredients(allSelected ? [] : allNames)
-                    }}
-                    className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      ingredients.every((i) => selectedIngredients.includes(i.name))
-                        ? 'bg-[#13AF70] text-white border-[#13AF70]'
-                        : 'bg-white text-[#13AF70] border-[#13AF70]'
+                    key={v}
+                    onClick={() => setPickerView(v)}
+                    className={`flex-1 h-7 rounded-md text-[11.5px] font-medium transition-all ${
+                      pickerView === v ? 'bg-white text-[#13AF70] font-bold shadow-sm' : 'text-gray-400'
                     }`}
                   >
-                    전체
+                    {v === 'all' ? '전체' : '카테고리'}
                   </button>
-                  {/* 재료 칩 */}
-                  {ingredients.map((ingredient) => {
-                    const selected = selectedIngredients.includes(ingredient.name)
-                    return (
-                      <button
-                        key={ingredient.id}
-                        onClick={() => toggleIngredient(ingredient.name)}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                          selected ? 'bg-[#13AF70] text-white' : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        <span>{ingredient.emoji}</span>
-                        <span>{ingredient.name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+                ))}
+              </div>
+
+              {/* 내용 */}
+              <div className="overflow-y-auto no-scrollbar px-3 pb-3">
+                {ingredients.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-3 text-center">등록된 재료가 없어요</p>
+                ) : pickerView === 'all' ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => {
+                        const allNames = ingredients.map((i) => i.name)
+                        const allSelected = allNames.every((n) => selectedIngredients.includes(n))
+                        setSelectedIngredients(allSelected ? [] : allNames)
+                      }}
+                      className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        ingredients.every((i) => selectedIngredients.includes(i.name))
+                          ? 'bg-[#13AF70] text-white border-[#13AF70]'
+                          : 'bg-white text-[#13AF70] border-[#13AF70]'
+                      }`}
+                    >
+                      전체
+                    </button>
+                    {ingredients.map((ingredient) => {
+                      const selected = selectedIngredients.includes(ingredient.name)
+                      return (
+                        <button
+                          key={ingredient.id}
+                          onClick={() => toggleIngredient(ingredient.name)}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selected ? 'bg-[#13AF70] text-white' : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          <span>{ingredient.emoji}</span>
+                          <span>{ingredient.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    {CATEGORY_ORDER.map((cat) => {
+                      const catItems = ingredients.filter((i) => (i.category ?? '기타') === cat)
+                      if (catItems.length === 0) return null
+                      const { icon } = CATEGORY_META[cat]
+                      const allCatSelected = catItems.every((i) => selectedIngredients.includes(i.name))
+                      return (
+                        <div key={cat}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-[11px] font-semibold text-gray-500 flex items-center gap-1">
+                              <span>{icon}</span>{cat}
+                            </p>
+                            <button
+                              onClick={() => {
+                                const names = catItems.map((i) => i.name)
+                                setSelectedIngredients((prev) =>
+                                  allCatSelected
+                                    ? prev.filter((n) => !names.includes(n))
+                                    : Array.from(new Set([...prev, ...names]))
+                                )
+                              }}
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                                allCatSelected ? 'bg-[#13AF70] text-white' : 'bg-gray-100 text-gray-500'
+                              }`}
+                            >
+                              전체
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {catItems.map((ingredient) => {
+                              const selected = selectedIngredients.includes(ingredient.name)
+                              return (
+                                <button
+                                  key={ingredient.id}
+                                  onClick={() => toggleIngredient(ingredient.name)}
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                                    selected ? 'bg-[#13AF70] text-white' : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  <span>{ingredient.emoji}</span>
+                                  <span>{ingredient.name}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -282,17 +343,6 @@ export default function ChatbotPage() {
                     {selectedIngredients.length}
                   </span>
                 )}
-              </button>
-
-              {/* 모드 토글 pill */}
-              <button
-                onClick={() => setRecipeMode((m) => (m === 'search' ? 'generate' : 'search'))}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white shadow-sm active:scale-95 transition-transform"
-              >
-                <span className="text-[12px] leading-none">{recipeMode === 'search' ? '🔍' : '✨'}</span>
-                <span className={`text-[11px] font-semibold ${recipeMode === 'search' ? 'text-[#13AF70]' : 'text-orange-400'}`}>
-                  {recipeMode === 'search' ? '검색모드' : '생성모드'}
-                </span>
               </button>
 
               {/* 스페이서 */}

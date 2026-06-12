@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import type { ChatRecipe } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -83,15 +83,18 @@ ${ingredientList}
   }
 ]`
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
   let recipeCards: ChatRecipe[] = []
   let replyText = ''
 
   try {
-    const result = await model.generateContent(prompt)
-    const text = result.response.text()
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { thinkingConfig: { thinkingBudget: 0 } },
+    })
+    const text = result.text ?? ''
     const jsonMatch = text.match(/\[[\s\S]*\]/)
 
     if (jsonMatch) {

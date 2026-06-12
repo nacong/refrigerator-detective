@@ -53,47 +53,6 @@ export default function SettingsPage() {
       ? ratingsWithValues.reduce((sum, h) => sum + h.rating!, 0) / ratingsWithValues.length
       : null
 
-  // 이번 달 영양 (cooked_at 기준 클라이언트 로컬 월 필터)
-  const now = new Date()
-  const thisMonthHistory = history.filter((h) => {
-    const d = new Date(h.cooked_at)
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-  })
-  const mealsWithNutrition = thisMonthHistory.filter((h) => h.nutrition != null)
-
-  let avgNutrition: { calories: number; protein: number; carbs: number; fat: number } | null = null
-  if (mealsWithNutrition.length > 0) {
-    const totals = mealsWithNutrition.reduce(
-      (acc, h) => ({
-        calories: acc.calories + (h.nutrition!.calories ?? 0),
-        protein: acc.protein + (h.nutrition!.protein ?? 0),
-        carbs: acc.carbs + (h.nutrition!.carbs ?? 0),
-        fat: acc.fat + (h.nutrition!.fat ?? 0),
-      }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    )
-    const n = mealsWithNutrition.length
-    avgNutrition = {
-      calories: Math.round(totals.calories / n),
-      protein: Math.round(totals.protein / n),
-      carbs: Math.round(totals.carbs / n),
-      fat: Math.round(totals.fat / n),
-    }
-  }
-
-  // 매크로 비율 바 (단백질 파랑 / 탄수화물 주황 / 지방 빨강)
-  let macroBar: { protein: number; carbs: number; fat: number } | null = null
-  if (avgNutrition) {
-    const macroTotal = avgNutrition.protein + avgNutrition.carbs + avgNutrition.fat
-    if (macroTotal > 0) {
-      macroBar = {
-        protein: Math.round((avgNutrition.protein / macroTotal) * 100),
-        carbs: Math.round((avgNutrition.carbs / macroTotal) * 100),
-        fat: Math.round((avgNutrition.fat / macroTotal) * 100),
-      }
-    }
-  }
-
   // ── 계정 액션 ────────────────────────────────────────────────
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' })
@@ -223,46 +182,6 @@ export default function SettingsPage() {
           )
         })()}
 
-        {/* 이번 달 평균 영양 */}
-        <div className="bg-white border border-gray-100 rounded-2xl px-4 py-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[15px] font-bold text-gray-900">이번 달 평균 영양</p>
-            <span className="text-[11px] text-gray-400">
-              {now.getMonth() + 1}월 · {mealsWithNutrition.length}끼니 기준
-            </span>
-          </div>
-
-          {avgNutrition && macroBar ? (
-            <>
-              {/* 평균 칼로리 */}
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[32px] font-extrabold text-gray-900 leading-none">
-                  {avgNutrition.calories.toLocaleString()}
-                </span>
-                <span className="text-sm text-gray-400">kcal / 끼니</span>
-              </div>
-
-              {/* 매크로 비율 바 */}
-              <div className="flex rounded-full overflow-hidden h-3 bg-gray-100">
-                <div className="bg-blue-400 transition-all" style={{ width: `${macroBar.protein}%` }} />
-                <div className="bg-orange-400 transition-all" style={{ width: `${macroBar.carbs}%` }} />
-                <div className="bg-red-400 transition-all" style={{ width: `${macroBar.fat}%` }} />
-              </div>
-
-              {/* 매크로 레이블 */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <MacroLabel color="bg-blue-400" label="단백질" value={avgNutrition.protein} />
-                <MacroLabel color="bg-orange-400" label="탄수화물" value={avgNutrition.carbs} />
-                <MacroLabel color="bg-red-400" label="지방" value={avgNutrition.fat} />
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-gray-400 py-1">
-              요리를 완료하면 영양 정보가 쌓여요 🥗
-            </p>
-          )}
-        </div>
-
         {/* 계정 설정 */}
         <div className="flex flex-col gap-2">
           <p className="text-[12px] font-semibold text-gray-400 px-1">계정 설정</p>
@@ -331,22 +250,3 @@ export default function SettingsPage() {
   )
 }
 
-// ── 서브 컴포넌트 ──────────────────────────────────────────────
-function MacroLabel({
-  color,
-  label,
-  value,
-}: {
-  color: string
-  label: string
-  value: number
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color}`} />
-      <span className="text-[12px] text-gray-600">
-        {label} <span className="font-semibold">{value}g</span>
-      </span>
-    </div>
-  )
-}
