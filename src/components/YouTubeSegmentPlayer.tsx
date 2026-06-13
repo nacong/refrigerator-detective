@@ -43,7 +43,7 @@ export default function YouTubeSegmentPlayer({ videoId, start, end, className = 
   const startRef = useRef(start)
   const endRef = useRef(end)
   const loopCountRef = useRef(0)
-  const [progress, setProgress] = useState(0) // 0–1, 구간 기준
+  const [progress, setProgress] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => { startRef.current = start; endRef.current = end }, [start, end])
@@ -58,11 +58,22 @@ export default function YouTubeSegmentPlayer({ videoId, start, end, className = 
       const e = endRef.current
       const duration = e - s
       if (duration <= 0) return
+
+      // 구간 종료 감지 — endSeconds 파라미터 대신 polling으로 처리해 seekTo와 호환
+      if (cur >= e - 0.4) {
+        loopCountRef.current += 1
+        if (loopCountRef.current === 1) player.mute?.()
+        player.seekTo(s, true)
+        player.playVideo?.()
+        setProgress(0)
+        return
+      }
+
       setProgress(Math.min(1, Math.max(0, (cur - s) / duration)))
     }, 250)
   }, [])
 
-  // 플레이어 생성
+  // 플레이어 생성 — videoId 바뀔 때만
   useEffect(() => {
     const wrap = wrapRef.current
     if (!wrap) return
@@ -78,7 +89,7 @@ export default function YouTubeSegmentPlayer({ videoId, start, end, className = 
         width: '100%',
         height: '100%',
         playerVars: {
-          start, end,
+          start,
           autoplay: 1,
           mute: fullscreen ? 0 : 1,
           controls: fullscreen ? 0 : 1,
@@ -97,17 +108,6 @@ export default function YouTubeSegmentPlayer({ videoId, start, end, className = 
             }
             startPolling()
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onStateChange: (e: any) => {
-            if (e.data === window.YT?.PlayerState?.ENDED) {
-              loopCountRef.current += 1
-              if (loopCountRef.current === 1) {
-                playerRef.current?.mute()
-              }
-              playerRef.current?.seekTo(startRef.current, true)
-              playerRef.current?.playVideo()
-            }
-          },
         },
       })
     })
@@ -122,14 +122,18 @@ export default function YouTubeSegmentPlayer({ videoId, start, end, className = 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId])
 
-  // 단계 변경 시 새 구간으로 이동 + 루프 카운터 초기화
+  // 스텝 변경 — loadVideoById 대신 seekTo로 즉시 이동 (버퍼 재사용)
   useEffect(() => {
-    if (!playerRef.current?.loadVideoById) return
+    const player = playerRef.current
+    if (!player?.seekTo) return
     loopCountRef.current = 0
-    if (fullscreen) playerRef.current.unMute?.()
-    playerRef.current.loadVideoById({ videoId, startSeconds: start, endSeconds: end })
+    if (fullscreen) player.unMute?.()
+    player.seekTo(start, true)
+    player.playVideo?.()
     setProgress(0)
-  }, [videoId, start, end, fullscreen])
+  // videoId 변경은 위 effect가 담당하므로 deps에서 제외
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, end, fullscreen])
 
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     const bar = (e.currentTarget as HTMLDivElement)
@@ -147,7 +151,6 @@ export default function YouTubeSegmentPlayer({ videoId, start, end, className = 
 
   return (
     <div className={className}>
-      {/* 영상 영역 */}
       <div
         ref={wrapRef}
         className={fullscreen
@@ -155,12 +158,10 @@ export default function YouTubeSegmentPlayer({ videoId, start, end, className = 
           : 'w-full aspect-[9/16] overflow-hidden bg-black'
         }
       />
-      {/* 유튜브 상단 제목 가리기 */}
       {fullscreen && (
         <div className="absolute top-0 inset-x-0 h-16 bg-black z-10 pointer-events-none" />
       )}
 
-      {/* 프로그레스 바 — fullscreen 시 숨김 */}
       {!fullscreen && (
         <div className="px-4 pt-2 pb-1">
           <div

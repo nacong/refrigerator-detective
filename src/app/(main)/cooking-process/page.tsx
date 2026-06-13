@@ -36,6 +36,8 @@ export default function CookingProcessPage() {
   const [ingredientUpdates, setIngredientUpdates] = useState<IngredientUpdate[]>([])
   const [selectedUpdateIds, setSelectedUpdateIds] = useState<Set<string>>(new Set())
   const [loadingIngredientUpdates, setLoadingIngredientUpdates] = useState(false)
+  const [editingQuantityId, setEditingQuantityId] = useState<string | null>(null)
+  const [editingQuantityValue, setEditingQuantityValue] = useState('')
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const startTimeRef = useRef<number>(Date.now())
@@ -44,6 +46,16 @@ export default function CookingProcessPage() {
 
   const now = () =>
     new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+
+  const handlePrev = () => {
+    if (currentIndex <= 1) return
+    setCompletedTimes((prev) => {
+      const next = { ...prev }
+      delete next[currentIndex - 1]
+      return next
+    })
+    setCurrentIndex((i) => i - 1)
+  }
 
   const handleNext = () => {
     const time = now()
@@ -370,10 +382,42 @@ export default function CookingProcessPage() {
                         <span className="text-base flex-shrink-0">{u.emoji}</span>
                         <span className="text-sm font-medium text-gray-800 flex-1">{u.name}</span>
                         <div className="flex items-center gap-2 flex-shrink-0">
+                          {u.oldQuantity && (
+                            <span className="text-xs text-gray-400 line-through">{u.oldQuantity}</span>
+                          )}
                           {u.action === 'remove' ? (
                             <span className="text-xs font-medium text-red-400">전부 사용됨</span>
+                          ) : editingQuantityId === u.id ? (
+                            <input
+                              type="text"
+                              value={editingQuantityValue}
+                              onChange={(e) => setEditingQuantityValue(e.target.value)}
+                              onBlur={() => {
+                                if (editingQuantityValue.trim()) {
+                                  setIngredientUpdates((prev) =>
+                                    prev.map((item) =>
+                                      item.id === u.id ? { ...item, newQuantity: editingQuantityValue.trim() } : item
+                                    )
+                                  )
+                                }
+                                setEditingQuantityId(null)
+                              }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs font-medium text-orange-400 bg-orange-50 border-b border-orange-400 outline-none w-16 text-center"
+                              autoFocus
+                            />
                           ) : (
-                            <span className="text-xs font-medium text-orange-400">{u.newQuantity} 남음</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingQuantityId(u.id)
+                                setEditingQuantityValue(u.newQuantity ?? '')
+                              }}
+                              className="text-xs font-medium text-orange-400 underline underline-offset-2 decoration-dashed"
+                            >
+                              {u.newQuantity}
+                            </button>
                           )}
                           {u.action === 'remove' && (
                             <a
@@ -482,12 +526,22 @@ export default function CookingProcessPage() {
             )}
           </button>
         ) : (
-          <button
-            onClick={handleNext}
-            className="w-full bg-[#13AF70] text-white font-bold py-4 rounded-2xl text-[16px] active:scale-[0.98] transition-transform"
-          >
-            {currentIndex === totalSteps - 1 ? '요리 완성! 🎉' : '다음 단계'}
-          </button>
+          <div className="flex gap-2">
+            {currentIndex > 1 && (
+              <button
+                onClick={handlePrev}
+                className="h-14 px-5 rounded-2xl bg-gray-100 text-[15px] font-semibold text-gray-600 active:bg-gray-200 transition-colors flex-shrink-0"
+              >
+                이전
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              className="flex-1 h-14 bg-[#13AF70] text-white font-bold rounded-2xl text-[16px] active:scale-[0.98] transition-transform"
+            >
+              {currentIndex === totalSteps - 1 ? '요리 완성! 🎉' : '다음 단계'}
+            </button>
+          </div>
         )}
       </div>
 

@@ -9,20 +9,32 @@ function thumbUrl(videoId: string) {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
-export default function SoloCookingSection() {
+export default function SoloCookingSection({ searchQuery = '' }: { searchQuery?: string }) {
   const router = useRouter()
   const { data: videos = [], isLoading } = useSoloCookingVideos()
   const [preview, setPreview] = useState<SoloCookingVideo | null>(null)
 
+  const filtered = searchQuery.trim()
+    ? videos.filter((v) =>
+        v.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        v.channel_name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : videos
+
   return (
     <>
       <section className="mb-5 pt-3">
-<div className="grid grid-cols-2 gap-3 px-4">
+        <div className="grid grid-cols-2 gap-3 px-4">
           {isLoading && [1, 2, 3, 4].map((i) => (
             <div key={i} className="aspect-[9/16] rounded-2xl bg-gray-200 animate-pulse" />
           ))}
 
-          {!isLoading && videos.map((video) => (
+          {!isLoading && filtered.length === 0 && (
+            <div className="col-span-2 py-16 flex flex-col items-center gap-2">
+              <p className="text-gray-400 text-sm">검색 결과가 없어요</p>
+            </div>
+          )}
+          {!isLoading && filtered.map((video) => (
             <button
               key={video.id}
               onClick={() => setPreview(video)}
