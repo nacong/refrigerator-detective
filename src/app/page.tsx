@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import MobileContainer from '@/components/layout/MobileContainer'
@@ -92,6 +92,8 @@ export default function MainPage() {
 
   const [showDetective, setShowDetective] = useState(true)
   const [dismissingDetective, setDismissingDetective] = useState(false)
+  const [floatExpanded, setFloatExpanded] = useState(false)
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [activeTab, setActiveTab] = useState<0 | 1>(0)
   const [showSoloModal, setShowSoloModal] = useState(false)
   const [soloSearch, setSoloSearch] = useState('')
@@ -130,6 +132,9 @@ export default function MainPage() {
 
   const handleDismissDetective = useCallback(() => {
     setDismissingDetective(true)
+    setFloatExpanded(true)
+    if (expandTimerRef.current) clearTimeout(expandTimerRef.current)
+    expandTimerRef.current = setTimeout(() => setFloatExpanded(false), 2600)
     setTimeout(() => {
       setShowDetective(false)
       setDismissingDetective(false)
@@ -143,6 +148,10 @@ export default function MainPage() {
   }).length
 
   // 첫 로그인 감지 — 바로 /tutorial/step1로 이동 (메인 화면 안 거침)
+  useEffect(() => () => {
+    if (expandTimerRef.current) clearTimeout(expandTimerRef.current)
+  }, [])
+
   useEffect(() => {
     if (!session?.user?.email) return
     if (loadingIngredients) return
@@ -256,9 +265,12 @@ export default function MainPage() {
         )}
       </div>
 
-      {/* 선택 재료 레시피 검색 CTA */}
+      {/* 선택 재료 레시피 검색 CTA — 플로팅 버튼 위에 표시 */}
       {selectedIngredients.length > 0 && (
-        <div className="absolute left-0 right-0 bottom-[84px] z-30 px-4 pointer-events-none">
+        <div
+          className="absolute left-0 right-0 z-30 px-4 pointer-events-none"
+          style={{ bottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}
+        >
           <button
             className="w-full min-h-[56px] pointer-events-auto flex flex-col items-center justify-center gap-0.5 bg-[#13AF70] rounded-2xl text-white active:scale-[0.98] transition-transform"
             style={{ boxShadow: '0 8px 20px rgba(19,175,112,.32)' }}
@@ -269,6 +281,51 @@ export default function MainPage() {
           </button>
         </div>
       )}
+
+      {/* 플로팅 냉탐이 — 항상 표시, 탐정 배너 닫을 때 필 형태로 확장 */}
+      <button
+        type="button"
+        aria-label="냉탐이와 레시피 찾기"
+        onClick={() => router.push('/chatbot')}
+        className="absolute z-[38] inline-flex items-center cursor-pointer"
+        style={{
+          right: 14,
+          bottom: 'calc(92px + env(safe-area-inset-bottom, 0px))',
+          gap: floatExpanded ? 10 : 0,
+          height: 62,
+          paddingLeft: 0,
+          paddingRight: floatExpanded ? 16 : 0,
+          borderRadius: 9999,
+          overflow: 'hidden',
+          background: '#EAF7EF',
+          border: '2px solid #BFE8CF',
+          boxShadow: '0 8px 20px -6px rgba(19,175,112,.45), 0 0 0 4px rgba(19,175,112,.07)',
+          fontFamily: 'inherit',
+          transition: 'gap .34s ease, padding-right .34s ease',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/detective_salute.png"
+          alt="냉탐이"
+          draggable={false}
+          style={{
+            flexShrink: 0,
+            width: 58, height: 58,
+            objectFit: 'cover', objectPosition: '50% 8%',
+            transform: 'scale(1.42)', transformOrigin: '50% 6%',
+          }}
+        />
+        <span style={{
+          display: 'flex', alignItems: 'center', lineHeight: 1.15, whiteSpace: 'nowrap',
+          maxWidth: floatExpanded ? 200 : 0,
+          opacity: floatExpanded ? 1 : 0,
+          overflow: 'hidden',
+          transition: 'max-width .38s ease, opacity .26s ease',
+        }}>
+          <span style={{ fontSize: 15.5, fontWeight: 800, color: '#1F2937' }}>오늘 뭐 먹을까요?</span>
+        </span>
+      </button>
 
       {/* 하단 고정 네비 */}
       <BottomNavigation active="home" />
@@ -349,9 +406,39 @@ export default function MainPage() {
             </div>
           </div>
           {/* 솔로쿠킹 콘텐츠 (스크롤) */}
-          <div className="flex-1 overflow-y-auto no-scrollbar" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="flex-1 overflow-y-auto no-scrollbar" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
             <SoloCookingSection searchQuery={soloSearch} />
           </div>
+          {/* 플로팅 냉탐이 */}
+          <button
+            type="button"
+            aria-label="냉탐이와 레시피 찾기"
+            onClick={() => { setShowSoloModal(false); setSoloSearch(''); router.push('/chatbot') }}
+            className="absolute z-[52] inline-flex items-center cursor-pointer"
+            style={{
+              right: 14,
+              bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+              height: 62,
+              padding: 0,
+              borderRadius: 9999,
+              overflow: 'hidden',
+              background: '#EAF7EF',
+              border: '2px solid #BFE8CF',
+              boxShadow: '0 8px 20px -6px rgba(19,175,112,.45), 0 0 0 4px rgba(19,175,112,.07)',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/detective_salute.png"
+              alt="냉탐이"
+              draggable={false}
+              style={{
+                width: 58, height: 58,
+                objectFit: 'cover', objectPosition: '50% 8%',
+                transform: 'scale(1.42)', transformOrigin: '50% 6%',
+              }}
+            />
+          </button>
         </div>
       )}
 

@@ -7,6 +7,7 @@ interface AppState {
   recognizedIngredients: Partial<Ingredient>[]
   chatMessages: ChatMessage[]
   selectedRecipe: ChatRecipe | null
+  floatingButtonHidden: boolean
 
   setCapturedImage: (image: string | null, mime: string | null) => void
   setRecognizedIngredients: (ingredients: Partial<Ingredient>[]) => void
@@ -15,6 +16,7 @@ interface AppState {
   addChatMessage: (message: ChatMessage) => void
   clearChatMessages: () => void
   setSelectedRecipe: (recipe: ChatRecipe | null) => void
+  setFloatingButtonHidden: (hidden: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -23,6 +25,7 @@ export const useAppStore = create<AppState>((set) => ({
   recognizedIngredients: [],
   chatMessages: [],
   selectedRecipe: null,
+  floatingButtonHidden: false,
 
   setCapturedImage: (image, mime) =>
     set({ capturedImage: image, capturedImageMime: mime }),
@@ -48,4 +51,5 @@ export const useAppStore = create<AppState>((set) => ({
   clearChatMessages: () => set({ chatMessages: [] }),
 
   setSelectedRecipe: (recipe) => set({ selectedRecipe: recipe }),
+  setFloatingButtonHidden: (hidden) => set({ floatingButtonHidden: hidden }),
 }))

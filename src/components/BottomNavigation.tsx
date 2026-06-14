@@ -1,6 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import AddIngredientSheet from '@/components/AddIngredientSheet'
+import { useAppStore } from '@/store/useAppStore'
 
 /**
  * BottomNavigation — 모바일 하단 고정 네비게이션.
@@ -34,10 +37,15 @@ export default function BottomNavigation({ active }: BottomNavigationProps) {
   const router = useRouter()
   const pathname = usePathname()
   const current = active ?? inferActive(pathname)
+  const [showAddSheet, setShowAddSheet] = useState(false)
+  const setFloatingButtonHidden = useAppStore((s) => s.setFloatingButtonHidden)
+
+  useEffect(() => { setFloatingButtonHidden(showAddSheet) }, [showAddSheet, setFloatingButtonHidden])
 
   const go = (key: NavKey) => router.push(ROUTES[key])
 
   return (
+    <>
     <nav
       aria-label="주요 화면 이동"
       className="fixed bottom-0 inset-x-0 z-40 pointer-events-none"
@@ -67,8 +75,8 @@ export default function BottomNavigation({ active }: BottomNavigationProps) {
           <div className="flex items-start justify-center">
             <button
               type="button"
-              aria-label="카메라"
-              onClick={() => go('camera')}
+              aria-label="식재료 추가"
+              onClick={() => setShowAddSheet(true)}
               className="w-12 h-12 rounded-full bg-[#13AF70] text-white inline-flex items-center justify-center active:scale-95 transition-transform"
               style={{
                 marginTop: -20,
@@ -90,6 +98,16 @@ export default function BottomNavigation({ active }: BottomNavigationProps) {
         </div>
       </div>
     </nav>
+
+    {showAddSheet && (
+      <AddIngredientSheet
+        onClose={() => setShowAddSheet(false)}
+        onCamera={() => { setShowAddSheet(false); router.push('/ai-recognition') }}
+        onGallery={() => { setShowAddSheet(false); router.push('/ai-recognition') }}
+        onManual={() => { setShowAddSheet(false); router.push('/ai-recognition') }}
+      />
+    )}
+    </>
   )
 }
 
