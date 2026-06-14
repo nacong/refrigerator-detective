@@ -203,18 +203,32 @@ export default function MainPage() {
           <span className="text-[22px] leading-none">🌱</span>
           <span>냉장고 탐정</span>
         </h1>
-        {/* YouTube 탐색 버튼 */}
-        <button
-          onClick={() => setShowSoloModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 active:bg-gray-200 transition-colors"
-          aria-label="자취 유튜버 레시피 탐색"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="5" width="20" height="14" rx="3" fill="#FF0000" />
-            <path d="M10 9l6 3-6 3V9z" fill="white" />
-          </svg>
-          <span className="text-[13px] font-medium text-gray-700">탐색</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 튜토리얼 버튼 */}
+          <button
+            onClick={() => router.push('/tutorial')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 active:bg-gray-200 transition-colors"
+            aria-label="튜토리얼"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            <span className="text-[13px] font-medium text-gray-700">튜토리얼</span>
+          </button>
+          {/* YouTube 탐색 버튼 */}
+          <button
+            onClick={() => setShowSoloModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 active:bg-gray-200 transition-colors"
+            aria-label="자취 유튜버 레시피 탐색"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="5" width="20" height="14" rx="3" fill="#FF0000" />
+              <path d="M10 9l6 3-6 3V9z" fill="white" />
+            </svg>
+            <span className="text-[13px] font-medium text-gray-700">탐색</span>
+          </button>
+        </div>
       </header>
 
       {/* 전체 스크롤 영역 */}
@@ -399,10 +413,11 @@ export default function MainPage() {
 
       {/* 솔로쿠킹 탐색 모달 */}
       {showSoloModal && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-white"
-          style={{ paddingTop: 'max(0px, env(safe-area-inset-top))' }}
-        >
+        <div className="fixed inset-0 z-50 bg-white flex justify-center">
+          <div
+            className="w-full max-w-[430px] flex flex-col"
+            style={{ paddingTop: 'max(0px, env(safe-area-inset-top))' }}
+          >
           {/* 검색 헤더 */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 flex-shrink-0">
             <button
@@ -471,6 +486,7 @@ export default function MainPage() {
               }}
             />
           </button>
+          </div>
         </div>
       )}
 

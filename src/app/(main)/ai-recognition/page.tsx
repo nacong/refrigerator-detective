@@ -180,11 +180,17 @@ function AIRecognitionContent() {
   /* ── manual phase ── */
   if (phase === 'manual') {
     return (
-      <div className="fixed inset-0 bg-white flex flex-col">
+      <div className="fixed inset-0 bg-white flex justify-center">
+        <div className="w-full max-w-[430px] flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center gap-3 px-4 pb-3 border-b border-gray-100" style={{ paddingTop: 'max(52px, calc(env(safe-area-inset-top) + 16px))' }}>
           <button
-            onClick={() => { setManualForm(DEFAULT_MANUAL_FORM); setManualError(null); setPhase(recognizedIngredients.length > 0 ? 'result' : 'picking') }}
+            onClick={() => {
+              setManualForm(DEFAULT_MANUAL_FORM)
+              setManualError(null)
+              if (recognizedIngredients.length > 0) setPhase('result')
+              else router.back()
+            }}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
             aria-label="뒤로가기"
           >
@@ -303,6 +309,7 @@ function AIRecognitionContent() {
           >
             추가하기
           </button>
+        </div>
         </div>
       </div>
     )

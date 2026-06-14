@@ -723,10 +723,7 @@ function CoachCard({
 
 // ── OnboardingTour (메인 컨트롤러) ────────────────────────────────────
 export default function OnboardingTour({ onFinish }: { onFinish: () => void }) {
-  const saved = typeof window !== 'undefined'
-    ? Number(localStorage.getItem('rd_onb_step') || '0')
-    : 0
-  const [step, setStep] = useState(Math.min(Math.max(saved, 0), STEPS.length - 1))
+  const [step, setStep] = useState(0)
   const [camPhase, setCamPhase] = useState<'photo' | 'scanning' | 'done'>('photo')
   const [tabPhase, setTabPhase] = useState<'attention' | 'recipes'>('attention')
   const [rect, setRect] = useState<Rect | null>(null)
@@ -736,10 +733,6 @@ export default function OnboardingTour({ onFinish }: { onFinish: () => void }) {
   const cfg = STEPS[step]
   const isLast = step === STEPS.length - 1
   const camDone = camPhase === 'done'
-
-  useEffect(() => {
-    try { localStorage.setItem('rd_onb_step', String(step)) } catch { /* noop */ }
-  }, [step])
 
   // 단계별 자동 동작
   useEffect(() => {
