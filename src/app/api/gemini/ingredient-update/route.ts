@@ -59,7 +59,7 @@ JSON 배열로만 응답하세요 (다른 텍스트 없이):
 
   try {
     const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { thinkingConfig: { thinkingBudget: 0 } },
     })

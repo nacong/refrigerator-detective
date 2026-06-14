@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
   const chatConfig = {
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-lite',
     config: { systemInstruction: systemPrompt, thinkingConfig: { thinkingBudget: 0 } },
   }
 
@@ -119,7 +119,7 @@ ${ingredientText ? `재료: ${ingredientText}` : ''}
 
       const [recipeResult, stream] = await Promise.all([
         ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.1-flash-lite',
           contents: [{ role: 'user', parts: [{ text: recipePrompt }] }],
           config: { thinkingConfig: { thinkingBudget: 0 } },
         }),

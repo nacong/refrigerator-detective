@@ -20,7 +20,7 @@ category는 식재료 종류로 판단하세요.
 JSON만 반환하고 다른 텍스트는 포함하지 마세요.`
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.1-flash-lite',
     contents: [
       {
         role: 'user',
