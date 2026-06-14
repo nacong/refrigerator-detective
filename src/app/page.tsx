@@ -152,7 +152,7 @@ export default function MainPage() {
 
     if (!hasVisited && ingredients.length === 0) {
       localStorage.setItem(key, '1')
-      router.replace('/tutorial/step1')
+      router.replace('/tutorial')
       return
     }
     setReady(true)
