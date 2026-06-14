@@ -1,28 +1,43 @@
 'use client'
 
-import { useRef, useState, Suspense } from 'react'
+import { useRef, useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import MobileContainer from '@/components/layout/MobileContainer'
 import { useAppStore } from '@/store/useAppStore'
 import { useAddIngredient } from '@/hooks/useIngredients'
-import type { Ingredient } from '@/types'
+import type { Ingredient, IngredientLocation, IngredientCategory } from '@/types'
+import { CATEGORY_ORDER, CATEGORY_META } from '@/lib/categories'
+
+const LOCATIONS: { key: IngredientLocation; icon: string; label: string }[] = [
+  { key: '냉장실', icon: '❄️', label: '냉장실' },
+  { key: '냉동실', icon: '🧊', label: '냉동실' },
+  { key: '실온',   icon: '🗄️', label: '실온' },
+]
 
 type Phase = 'picking' | 'processing' | 'result' | 'manual'
 
 const getOneWeekLater = () =>
   new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-const DEFAULT_MANUAL_FORM = () => ({ name: '', emoji: '', quantity: '', expiryDate: getOneWeekLater() })
+const DEFAULT_MANUAL_FORM = () => ({
+  name: '', emoji: '', quantity: '', expiryDate: getOneWeekLater(),
+  location: '냉장실' as IngredientLocation,
+  category: '기타' as IngredientCategory,
+})
 
 function AIRecognitionContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const from = searchParams.get('from')
+  const autostart = searchParams.get('autostart') === 'true'
+  const actionParam = searchParams.get('action')
 
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
-  const [phase, setPhase] = useState<Phase>('picking')
+  const [phase, setPhase] = useState<Phase>(
+    autostart ? 'processing' : actionParam === 'manual' ? 'manual' : 'picking'
+  )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editValues, setEditValues] = useState<Partial<Ingredient>>({})
@@ -32,6 +47,8 @@ function AIRecognitionContent() {
   const [manualError, setManualError] = useState<string | null>(null)
 
   const {
+    capturedImage,
+    capturedImageMime,
     setCapturedImage,
     setRecognizedIngredients,
     recognizedIngredients,
@@ -39,6 +56,32 @@ function AIRecognitionContent() {
     removeRecognizedIngredient,
   } = useAppStore()
   const addIngredient = useAddIngredient()
+
+  useEffect(() => {
+    if (!autostart || !capturedImage) return
+    const processImage = async () => {
+      try {
+        const res = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: capturedImage, mimeType: capturedImageMime }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setErrorMessage(data.error || `오류가 발생했습니다 (${res.status})`)
+          setPhase('picking')
+          return
+        }
+        setRecognizedIngredients(data.ingredients || [])
+        setPhase('result')
+      } catch {
+        setErrorMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요.')
+        setPhase('picking')
+      }
+    }
+    processImage()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -98,6 +141,8 @@ function AIRecognitionContent() {
       emoji: manualForm.emoji.trim() || '🥘',
       quantity: manualForm.quantity.trim() || '적당량',
       expiryDate: manualForm.expiryDate,
+      location: manualForm.location,
+      category: manualForm.category,
     }
     setRecognizedIngredients([...recognizedIngredients, newItem])
     setManualForm(DEFAULT_MANUAL_FORM)
@@ -120,8 +165,8 @@ function AIRecognitionContent() {
           emoji: ingredient.emoji || '🥘',
           quantity: ingredient.quantity || '적당량',
           expiryDate: ingredient.expiryDate || '',
-          location: ingredient.location ?? '냉장실',
-          category: ingredient.category ?? '기타',
+          location: (ingredient.location as IngredientLocation) ?? '냉장실',
+          category: (ingredient.category as IngredientCategory) ?? '기타',
         })
       }
       router.push(from === 'rescue-list' ? '/rescue-list' : '/')
@@ -199,6 +244,49 @@ function AIRecognitionContent() {
                 onChange={(e) => setManualForm((v) => ({ ...v, expiryDate: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-3 text-sm outline-none focus:border-[#13AF70]"
               />
+            </div>
+
+            {/* 보관 위치 */}
+            <div>
+              <label className="text-xs text-gray-500 mb-1.5 block">보관 위치</label>
+              <div className="flex gap-2">
+                {LOCATIONS.map(({ key, icon, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setManualForm((v) => ({ ...v, location: key }))}
+                    className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 transition-colors ${
+                      manualForm.location === key
+                        ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]'
+                        : 'border-gray-200 bg-white text-gray-500'
+                    }`}
+                  >
+                    <span className="text-base">{icon}</span>
+                    <span className="text-[11px] font-medium">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 카테고리 */}
+            <div>
+              <label className="text-xs text-gray-500 mb-1.5 block">카테고리</label>
+              <div className="grid grid-cols-3 gap-2">
+                {CATEGORY_ORDER.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setManualForm((v) => ({ ...v, category: cat }))}
+                    className={`py-2 px-1 rounded-xl border-2 text-[11px] font-medium transition-colors ${
+                      manualForm.category === cat
+                        ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]'
+                        : 'border-gray-200 bg-white text-gray-500'
+                    }`}
+                  >
+                    {CATEGORY_META[cat].icon} {cat}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {manualError && (
@@ -411,30 +499,46 @@ function AIRecognitionContent() {
       {editingIndex !== null && (
         <>
           <div className="absolute inset-0 bg-black/30 z-10" onClick={handleSaveEdit} />
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl z-20 px-6 pt-6 pb-8 safe-bottom">
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
-            <h2 className="text-base font-bold text-gray-800 mb-4">식재료 정보 수정</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">이름</label>
-                <input
-                  type="text"
-                  value={editValues.name || ''}
-                  onChange={(e) => setEditValues((v) => ({ ...v, name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
-                />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl z-20 px-5 pt-5 safe-bottom overflow-y-auto no-scrollbar" style={{ maxHeight: '88dvh' }}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+            <h2 className="text-[15px] font-bold text-gray-800 mb-4">식재료 정보 수정</h2>
+            <div className="space-y-3 pb-6">
+              {/* 이모지 + 이름 */}
+              <div className="flex gap-2.5">
+                <div className="flex-shrink-0">
+                  <label className="text-[11px] text-gray-400 font-semibold mb-1.5 block">이모지</label>
+                  <input
+                    type="text"
+                    value={editValues.emoji || ''}
+                    onChange={(e) => setEditValues((v) => ({ ...v, emoji: e.target.value }))}
+                    maxLength={2}
+                    className="w-[52px] border border-gray-200 rounded-xl px-2 py-2.5 text-xl text-center outline-none focus:border-[#13AF70]"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[11px] text-gray-400 font-semibold mb-1.5 block">이름</label>
+                  <input
+                    type="text"
+                    value={editValues.name || ''}
+                    onChange={(e) => setEditValues((v) => ({ ...v, name: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
+                  />
+                </div>
               </div>
+              {/* 수량 */}
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">수량/용량</label>
+                <label className="text-[11px] text-gray-400 font-semibold mb-1.5 block">수량/용량</label>
                 <input
                   type="text"
                   value={editValues.quantity || ''}
                   onChange={(e) => setEditValues((v) => ({ ...v, quantity: e.target.value }))}
+                  placeholder="예) 1개, 200g"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
                 />
               </div>
+              {/* 유통기한 */}
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">유통기한</label>
+                <label className="text-[11px] text-gray-400 font-semibold mb-1.5 block">유통기한</label>
                 <input
                   type="date"
                   value={editValues.expiryDate || ''}
@@ -442,13 +546,54 @@ function AIRecognitionContent() {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
                 />
               </div>
+              {/* 보관 위치 */}
+              <div>
+                <label className="text-[11px] text-gray-400 font-semibold mb-1.5 block">보관 위치</label>
+                <div className="flex gap-2">
+                  {LOCATIONS.map(({ key, icon, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setEditValues((v) => ({ ...v, location: key }))}
+                      className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 transition-colors ${
+                        (editValues.location ?? '냉장실') === key
+                          ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]'
+                          : 'border-gray-200 bg-white text-gray-500'
+                      }`}
+                    >
+                      <span className="text-base">{icon}</span>
+                      <span className="text-[11px] font-medium">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 카테고리 */}
+              <div>
+                <label className="text-[11px] text-gray-400 font-semibold mb-1.5 block">카테고리</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {CATEGORY_ORDER.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setEditValues((v) => ({ ...v, category: cat }))}
+                      className={`py-2 px-1 rounded-xl border-2 text-[11px] font-medium transition-colors ${
+                        (editValues.category ?? '기타') === cat
+                          ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]'
+                          : 'border-gray-200 bg-white text-gray-500'
+                      }`}
+                    >
+                      {CATEGORY_META[cat].icon} {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={handleSaveEdit}
+                className="w-full bg-[#13AF70] text-white font-semibold py-3.5 rounded-2xl active:scale-[0.98] transition-transform"
+              >
+                저장하기
+              </button>
             </div>
-            <button
-              onClick={handleSaveEdit}
-              className="w-full bg-[#13AF70] text-white font-semibold py-3.5 rounded-2xl mt-5 active:scale-[0.98] transition-transform"
-            >
-              저장하기
-            </button>
           </div>
         </>
       )}

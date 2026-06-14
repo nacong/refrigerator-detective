@@ -9,6 +9,7 @@ import { useChat } from '@/hooks/useChat'
 import { useIngredients } from '@/hooks/useIngredients'
 import type { ChatMessage } from '@/types'
 import { CATEGORY_ORDER, CATEGORY_META } from '@/lib/categories'
+import { useAppStore } from '@/store/useAppStore'
 
 export default function ChatbotPage() {
   const router = useRouter()
@@ -24,6 +25,10 @@ export default function ChatbotPage() {
     createdAt: new Date().toISOString(),
   }
 
+  const pendingIngredients = useAppStore((s) => s.pendingChatIngredients)
+  const pendingMessage = useAppStore((s) => s.pendingChatMessage)
+  const clearPendingChat = useAppStore((s) => s.clearPendingChat)
+
   const [inputText, setInputText] = useState('')
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
   const [showIngredientPicker, setShowIngredientPicker] = useState(false)
@@ -37,13 +42,23 @@ export default function ChatbotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  // 재료 로드 시 전체 선택 초기화 (앱 설치 후 최초 1회)
+  // 홈에서 넘어온 선택 재료 + 메시지 소비 (최우선)
   useEffect(() => {
+    if (!pendingIngredients) return
+    setSelectedIngredients(pendingIngredients)
+    if (pendingMessage) setInputText(pendingMessage)
+    clearPendingChat()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 재료 로드 시 전체 선택 초기화 (앱 설치 후 최초 1회, pending이 없을 때만)
+  useEffect(() => {
+    if (pendingIngredients) return // pending 처리 중엔 건드리지 않음
     if (ingredients.length === 0) return
     if (localStorage.getItem('rd_chatbot_ingredients_initialized')) return
     localStorage.setItem('rd_chatbot_ingredients_initialized', '1')
     setSelectedIngredients(ingredients.map((i) => i.name))
-  }, [ingredients])
+  }, [ingredients, pendingIngredients])
 
   // 재료 피커 외부 클릭 시 닫기
   useEffect(() => {
@@ -298,6 +313,25 @@ export default function ChatbotPage() {
 
           {/* 입력 바 — ChatGPT 스타일: 상단 textarea, 하단 툴바 */}
           <div className="flex flex-col bg-gray-100 rounded-2xl px-3 pt-2.5 pb-2 gap-2">
+            {/* 선택된 재료 칩 */}
+            {selectedIngredients.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {selectedIngredients.map((name) => {
+                  const ing = ingredients.find((i) => i.name === name)
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => toggleIngredient(name)}
+                      className="flex items-center gap-1 pl-2 pr-1.5 py-1 rounded-full bg-[#13AF70] text-white text-[11px] font-medium active:opacity-70 transition-opacity"
+                    >
+                      {ing?.emoji && <span>{ing.emoji}</span>}
+                      <span>{name}</span>
+                      <span className="opacity-70 text-[10px] leading-none">✕</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {/* 상단: textarea */}
             <textarea
               value={inputText}
@@ -338,7 +372,7 @@ export default function ChatbotPage() {
                     strokeLinecap="round"
                   />
                 </svg>
-                {selectedIngredients.length > 0 && !showIngredientPicker && (
+                {false && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#13AF70] rounded-full text-[9px] text-white flex items-center justify-center font-bold leading-none">
                     {selectedIngredients.length}
                   </span>

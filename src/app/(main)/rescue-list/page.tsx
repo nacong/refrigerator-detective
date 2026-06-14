@@ -31,6 +31,18 @@ const LOCATIONS: { key: IngredientLocation; icon: string; label: string }[] = [
 
 // ──────────────────────── helpers ────────────────────────
 
+function attachParticle(text: string): string {
+  const code = text[text.length - 1]?.charCodeAt(0) ?? 0
+  if (code < 0xAC00 || code > 0xD7A3) return text + '가'
+  return (code - 0xAC00) % 28 !== 0 ? text + '이' : text + '가'
+}
+
+function formatIngredientCta(names: string[]): string {
+  const displayText =
+    names.length <= 3 ? names.join(', ') : `${names.slice(0, 2).join(', ')} 외 ${names.length - 2}개`
+  return `${attachParticle(displayText)} 포함된 레시피 만들기`
+}
+
 function daysUntilExpiry(expiryDate: string | undefined | null): number | null {
   if (!expiryDate) return null
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -72,13 +84,22 @@ export default function RescueListPage() {
   const [discardTarget, setDiscardTarget] = useState<Ingredient | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [editTarget, setEditTarget] = useState<Ingredient | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmoji, setEditEmoji] = useState('')
+  const [editQuantity, setEditQuantity] = useState('')
   const [editLocation, setEditLocation] = useState<IngredientLocation>('냉장실')
   const [editCategory, setEditCategory] = useState<IngredientCategory>('기타')
   const [editExpiryDate, setEditExpiryDate] = useState<string>('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [showAddSheet, setShowAddSheet] = useState(false)
   const setFloatingButtonHidden = useAppStore((s) => s.setFloatingButtonHidden)
-  useEffect(() => { setFloatingButtonHidden(showAddSheet) }, [showAddSheet, setFloatingButtonHidden])
+  const setCapturedImage = useAppStore((s) => s.setCapturedImage)
+  const setPendingChat = useAppStore((s) => s.setPendingChat)
+
+  // 플로팅 버튼: 시트 열리거나 재료 선택 시 숨김
+  useEffect(() => {
+    setFloatingButtonHidden(showAddSheet || selectedIds.size > 0)
+  }, [showAddSheet, selectedIds, setFloatingButtonHidden])
   useEffect(() => () => { setFloatingButtonHidden(false) }, [setFloatingButtonHidden])
 
   const sorted = useMemo(() => {
@@ -142,8 +163,15 @@ export default function RescueListPage() {
     else toggleSelect(ing.id)
   }
 
+  const handleCardLongPress = (ing: Ingredient) => {
+    openEdit(ing)
+  }
+
   const openEdit = (ingredient: Ingredient) => {
     setEditTarget(ingredient)
+    setEditName(ingredient.name)
+    setEditEmoji(ingredient.emoji)
+    setEditQuantity(ingredient.quantity)
     setEditLocation(ingredient.location ?? '냉장실')
     setEditCategory(ingredient.category ?? '기타')
     setEditExpiryDate(ingredient.expiryDate ?? '')
@@ -156,7 +184,15 @@ export default function RescueListPage() {
       await fetch('/api/supabase/ingredients', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editTarget.id, location: editLocation, category: editCategory, expiryDate: editExpiryDate }),
+        body: JSON.stringify({
+          id: editTarget.id,
+          name: editName,
+          emoji: editEmoji,
+          quantity: editQuantity,
+          location: editLocation,
+          category: editCategory,
+          expiryDate: editExpiryDate,
+        }),
       })
       queryClient.invalidateQueries({ queryKey: ['ingredients'] })
     } catch { /* ignore */ } finally {
@@ -207,6 +243,7 @@ export default function RescueListPage() {
                     expired={isExpiredIngredient(ing)}
                     selected={selectedIds.has(ing.id)}
                     onClick={() => handleCardClick(ing)}
+                    onLongPress={() => handleCardLongPress(ing)}
                     onEdit={() => openEdit(ing)}
                     onDelete={() => handleDelete(ing)}
                   />
@@ -219,6 +256,7 @@ export default function RescueListPage() {
                   items={ingredients}
                   selectedIds={selectedIds}
                   onCardClick={handleCardClick}
+                  onCardLongPress={handleCardLongPress}
                   onCardEdit={openEdit}
                   onDelete={handleDelete}
                 />
@@ -236,15 +274,21 @@ export default function RescueListPage() {
 
       {/* Floating CTA */}
       {selectedItems.length > 0 && (
-        <div className="absolute left-0 right-0 bottom-[84px] z-30 px-4 pointer-events-none">
+        <div
+          className="absolute left-0 right-0 z-30 px-4 pointer-events-none"
+          style={{ bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}
+        >
           <button
-            className="w-full min-h-[56px] pointer-events-auto flex flex-col items-center justify-center gap-0.5 bg-[#13AF70] rounded-2xl text-white active:scale-[0.98] transition-transform"
+            className="w-full min-h-[56px] pointer-events-auto flex items-center justify-center bg-[#13AF70] rounded-2xl text-white active:scale-[0.98] transition-transform px-4"
             style={{ boxShadow: '0 8px 20px rgba(19,175,112,.32)' }}
-            onClick={() => router.push('/chatbot')}
+            onClick={() => {
+              const names = selectedItems.map((i) => i.name)
+              setPendingChat(names, '')
+              router.push('/chatbot')
+            }}
           >
-            <span className="text-[14px] font-bold">식재료로 레시피 검색하기</span>
-            <span className="text-[11px] font-medium" style={{ opacity: 0.85 }}>
-              선택한 식재료 {selectedItems.length}개
+            <span className="text-[14px] font-bold text-center leading-tight">
+              {formatIngredientCta(selectedItems.map((i) => i.name))}
             </span>
           </button>
         </div>
@@ -265,9 +309,12 @@ export default function RescueListPage() {
       {showAddSheet && (
         <AddIngredientSheet
           onClose={() => setShowAddSheet(false)}
-          onCamera={() => { setShowAddSheet(false); router.push('/ai-recognition?from=rescue-list') }}
-          onGallery={() => { setShowAddSheet(false); router.push('/ai-recognition?from=rescue-list') }}
-          onManual={() => { setShowAddSheet(false); router.push('/ai-recognition?from=rescue-list') }}
+          onFileSelected={(base64, mime) => {
+            setCapturedImage(base64, mime)
+            setShowAddSheet(false)
+            router.push('/ai-recognition?autostart=true&from=rescue-list')
+          }}
+          onManual={() => { setShowAddSheet(false); router.push('/ai-recognition?action=manual&from=rescue-list') }}
         />
       )}
 
@@ -275,54 +322,117 @@ export default function RescueListPage() {
       {editTarget && (
         <>
           <div className="fixed inset-0 bg-black/30 z-30" onClick={() => setEditTarget(null)} />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-40 px-5 pt-6 pb-10 max-w-[430px] mx-auto">
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
-            <div className="flex items-center gap-2 mb-5">
-              <span className="text-2xl">{editTarget.emoji}</span>
-              <p className="text-[15px] font-bold text-gray-900">{editTarget.name}</p>
-            </div>
-            <p className="text-xs font-semibold text-gray-500 mb-2">유통기한</p>
-            <input
-              type="date"
-              value={editExpiryDate}
-              onChange={(e) => setEditExpiryDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#13AF70] mb-5"
-            />
-            <p className="text-xs font-semibold text-gray-500 mb-2">보관 위치</p>
-            <div className="flex gap-2 mb-5">
-              {LOCATIONS.map(({ key, icon, label }) => (
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-40 px-5 pt-5 max-w-[430px] mx-auto overflow-y-auto no-scrollbar" style={{ maxHeight: '90dvh', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+
+            {/* 헤더 */}
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[16px] font-bold text-gray-900">식재료 정보 수정</p>
+              {isExpiredIngredient(editTarget) && (
                 <button
-                  key={key}
-                  onClick={() => setEditLocation(key)}
-                  className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-colors ${
-                    editLocation === key ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]' : 'border-gray-200 bg-white text-gray-500'
-                  }`}
+                  onClick={() => { setDiscardTarget(editTarget); setEditTarget(null) }}
+                  className="text-[12px] font-semibold text-red-500 bg-red-50 px-3 py-1.5 rounded-xl active:opacity-70"
                 >
-                  <span className="text-lg">{icon}</span>
-                  <span className="text-[11px]">{label}</span>
+                  폐기하기
                 </button>
-              ))}
+              )}
             </div>
-            <p className="text-xs font-semibold text-gray-500 mb-2">카테고리</p>
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              {CATEGORY_ORDER.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setEditCategory(cat)}
-                  className={`py-2 px-1 rounded-xl border-2 text-[11px] font-medium transition-colors ${
-                    editCategory === cat ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]' : 'border-gray-200 bg-white text-gray-500'
-                  }`}
-                >
-                  {CATEGORY_META[cat].icon} {cat}
-                </button>
-              ))}
+
+            {/* 이모지 + 이름 */}
+            <div className="flex gap-2.5 mb-3">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 mb-1.5">이모지</p>
+                <input
+                  type="text"
+                  value={editEmoji}
+                  onChange={(e) => setEditEmoji(e.target.value)}
+                  maxLength={2}
+                  className="w-[52px] border border-gray-200 rounded-xl px-2 py-2.5 text-xl text-center outline-none focus:border-[#13AF70]"
+                />
+              </div>
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold text-gray-400 mb-1.5">이름</p>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
+                />
+              </div>
             </div>
+
+            {/* 수량 */}
+            <div className="mb-3">
+              <p className="text-[11px] font-semibold text-gray-400 mb-1.5">수량/용량</p>
+              <input
+                type="text"
+                value={editQuantity}
+                onChange={(e) => setEditQuantity(e.target.value)}
+                placeholder="예) 1개, 200g"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#13AF70]"
+              />
+            </div>
+
+            {/* 유통기한 */}
+            <div className="mb-3">
+              <p className="text-[11px] font-semibold text-gray-400 mb-1.5">유통기한</p>
+              <input
+                type="date"
+                value={editExpiryDate}
+                onChange={(e) => setEditExpiryDate(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#13AF70]"
+              />
+            </div>
+
+            {/* 보관 위치 */}
+            <div className="mb-3">
+              <p className="text-[11px] font-semibold text-gray-400 mb-1.5">보관 위치</p>
+              <div className="flex gap-2">
+                {LOCATIONS.map(({ key, icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setEditLocation(key)}
+                    className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 transition-colors ${
+                      editLocation === key ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]' : 'border-gray-200 bg-white text-gray-500'
+                    }`}
+                  >
+                    <span className="text-base">{icon}</span>
+                    <span className="text-[11px]">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 카테고리 */}
+            <div className="mb-5">
+              <p className="text-[11px] font-semibold text-gray-400 mb-1.5">카테고리</p>
+              <div className="grid grid-cols-3 gap-2">
+                {CATEGORY_ORDER.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setEditCategory(cat)}
+                    className={`py-2 px-1 rounded-xl border-2 text-[11px] font-medium transition-colors ${
+                      editCategory === cat ? 'border-[#13AF70] bg-[#F0FBF5] text-[#13AF70]' : 'border-gray-200 bg-white text-gray-500'
+                    }`}
+                  >
+                    {CATEGORY_META[cat].icon} {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               onClick={handleSaveEdit}
-              disabled={isSavingEdit}
+              disabled={isSavingEdit || !editName.trim()}
               className="w-full bg-[#13AF70] text-white font-bold py-4 rounded-2xl active:scale-[0.98] transition-transform disabled:opacity-50"
             >
               {isSavingEdit ? '저장 중...' : '저장하기'}
+            </button>
+            <button
+              onClick={() => { setEditTarget(null); handleDelete(editTarget!) }}
+              className="w-full py-3 text-red-400 text-[13px] font-semibold active:opacity-70 transition-opacity"
+            >
+              삭제하기
             </button>
           </div>
         </>
@@ -488,6 +598,7 @@ function InventoryCard({
   expired,
   selected,
   onClick,
+  onLongPress,
   onEdit,
   onDelete,
 }: {
@@ -495,6 +606,7 @@ function InventoryCard({
   expired: boolean
   selected: boolean
   onClick: () => void
+  onLongPress: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -506,7 +618,7 @@ function InventoryCard({
     didHold.current = false
     holdTimer.current = setTimeout(() => {
       didHold.current = true
-      onEdit()
+      onLongPress()
     }, 600)
   }
   const endHold = () => {
@@ -546,7 +658,29 @@ function InventoryCard({
         width: '100%',
       }}
     >
-      {/* Corner badge */}
+      {/* 좌상단 수정 버튼 */}
+      {!expired && (
+        <span
+          role="button"
+          aria-label={`${ingredient.name} 수정`}
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onEdit() }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onEdit() } }}
+          style={{
+            position: 'absolute', top: 4, left: 4, width: 20, height: 20,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 9999, background: '#F3F4F6', color: '#9CA3AF',
+            cursor: 'pointer',
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </span>
+      )}
+
+      {/* 우상단: 만료=! / 선택=체크 / 일반=X 삭제 */}
       {expired ? (
         <span aria-hidden style={{
           position: 'absolute', top: 6, right: 6, width: 20, height: 20,
@@ -640,12 +774,14 @@ function CategoryAccordion({
   items,
   selectedIds,
   onCardClick,
+  onCardLongPress,
   onCardEdit,
   onDelete,
 }: {
   items: Ingredient[]
   selectedIds: Set<string>
   onCardClick: (ing: Ingredient) => void
+  onCardLongPress: (ing: Ingredient) => void
   onCardEdit: (ing: Ingredient) => void
   onDelete: (ing: Ingredient) => void
 }) {
@@ -703,6 +839,7 @@ function CategoryAccordion({
                         expired={isExpiredIngredient(ing)}
                         selected={selectedIds.has(ing.id)}
                         onClick={() => onCardClick(ing)}
+                        onLongPress={() => onCardLongPress(ing)}
                         onEdit={() => onCardEdit(ing)}
                         onDelete={() => onDelete(ing)}
                       />

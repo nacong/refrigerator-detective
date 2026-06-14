@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/useAppStore'
 
 // 플로팅 버튼을 숨길 경로 (홈은 page.tsx 자체 expand 버전 사용)
-const HIDDEN_PATHS = ['/', '/chatbot', '/tutorial', '/solo-cooking']
+const HIDDEN_PATHS = ['/', '/chatbot', '/tutorial', '/solo-cooking', '/ai-recognition']
 
 export default function FloatingChatbotButton() {
   const pathname = usePathname()

@@ -80,10 +80,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
   }
 
-  const { id, quantity, location, category, expiryDate } = await req.json()
+  const { id, name, emoji, quantity, location, category, expiryDate } = await req.json()
   if (!id) return NextResponse.json({ error: 'id가 필요합니다' }, { status: 400 })
 
   const updateFields: Record<string, string> = {}
+  if (name !== undefined) updateFields.name = name
+  if (emoji !== undefined) updateFields.emoji = emoji
   if (quantity !== undefined) updateFields.quantity = quantity
   if (location !== undefined) updateFields.location = location
   if (category !== undefined) updateFields.category = category

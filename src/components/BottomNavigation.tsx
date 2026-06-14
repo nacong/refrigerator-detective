@@ -39,6 +39,7 @@ export default function BottomNavigation({ active }: BottomNavigationProps) {
   const current = active ?? inferActive(pathname)
   const [showAddSheet, setShowAddSheet] = useState(false)
   const setFloatingButtonHidden = useAppStore((s) => s.setFloatingButtonHidden)
+  const setCapturedImage = useAppStore((s) => s.setCapturedImage)
 
   useEffect(() => { setFloatingButtonHidden(showAddSheet) }, [showAddSheet, setFloatingButtonHidden])
 
@@ -102,9 +103,12 @@ export default function BottomNavigation({ active }: BottomNavigationProps) {
     {showAddSheet && (
       <AddIngredientSheet
         onClose={() => setShowAddSheet(false)}
-        onCamera={() => { setShowAddSheet(false); router.push('/ai-recognition') }}
-        onGallery={() => { setShowAddSheet(false); router.push('/ai-recognition') }}
-        onManual={() => { setShowAddSheet(false); router.push('/ai-recognition') }}
+        onFileSelected={(base64, mime) => {
+          setCapturedImage(base64, mime)
+          setShowAddSheet(false)
+          router.push('/ai-recognition?autostart=true')
+        }}
+        onManual={() => { setShowAddSheet(false); router.push('/ai-recognition?action=manual') }}
       />
     )}
     </>

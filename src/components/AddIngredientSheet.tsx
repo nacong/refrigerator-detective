@@ -1,18 +1,37 @@
 'use client'
 
+import { useRef } from 'react'
+
 export default function AddIngredientSheet({
   onClose,
-  onCamera,
-  onGallery,
+  onFileSelected,
   onManual,
 }: {
   onClose: () => void
-  onCamera: () => void
-  onGallery: () => void
+  onFileSelected: (base64: string, mimeType: string) => void
   onManual: () => void
 }) {
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string
+      const [header, base64] = dataUrl.split(',')
+      const mimeType = header.match(/:(.*?);/)?.[1] || 'image/jpeg'
+      onFileSelected(base64, mimeType)
+    }
+    reader.readAsDataURL(file)
+  }
+
   return (
     <>
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
+      <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
       <div
         className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 px-5 pt-5 max-w-[430px] mx-auto"
@@ -23,7 +42,7 @@ export default function AddIngredientSheet({
 
         <div className="flex flex-col gap-2.5">
           <button
-            onClick={onCamera}
+            onClick={() => cameraInputRef.current?.click()}
             className="flex items-center gap-3.5 px-4 py-4 rounded-2xl bg-gray-50 border border-gray-200 active:bg-gray-100 transition-colors"
           >
             <span className="text-2xl">📷</span>
@@ -34,7 +53,7 @@ export default function AddIngredientSheet({
           </button>
 
           <button
-            onClick={onGallery}
+            onClick={() => galleryInputRef.current?.click()}
             className="flex items-center gap-3.5 px-4 py-4 rounded-2xl bg-gray-50 border border-gray-200 active:bg-gray-100 transition-colors"
           >
             <span className="text-2xl">🖼️</span>

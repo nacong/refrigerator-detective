@@ -17,6 +17,23 @@ import IngredientChip from '@/components/ui/IngredientChip'
 import { useDeleteIngredient } from '@/hooks/useIngredients'
 import { useQueryClient } from '@tanstack/react-query'
 
+function attachParticle(text: string): string {
+  const last = text[text.length - 1]
+  const code = last?.charCodeAt(0) ?? 0
+  if (code < 0xAC00 || code > 0xD7A3) return text + '가'
+  return (code - 0xAC00) % 28 !== 0 ? text + '이' : text + '가'
+}
+
+function formatIngredientCta(names: string[]): { label: string; message: string } {
+  const displayText =
+    names.length <= 3
+      ? names.join(', ')
+      : `${names.slice(0, 2).join(', ')} 외 ${names.length - 2}개`
+  const label = `${attachParticle(displayText)} 포함된 레시피 만들기`
+  const message = ``
+  return { label, message }
+}
+
 function getDaysUntilExpiry(expiryDate: string): number {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -72,6 +89,7 @@ export default function MainPage() {
   const { data: session } = useSession()
   const { data: ingredients = [], isLoading: loadingIngredients } = useIngredients()
   const setSelectedRecipe = useAppStore((s) => s.setSelectedRecipe)
+  const setPendingChat = useAppStore((s) => s.setPendingChat)
   const { data: pineconeRecipes = [], isLoading: loadingRecipes } = usePineconeRecommendations(ingredients)
 
   const recommendedRecipes: RecommendedRecipe[] = pineconeRecipes.map(
@@ -146,6 +164,14 @@ export default function MainPage() {
     const d = getDaysUntilExpiry(i.expiryDate)
     return d <= 3
   }).length
+
+  // 로딩 완료 후 임박 재료 없으면 탭 1 자동 전환 (최초 1회)
+  const didAutoSwitch = useRef(false)
+  useEffect(() => {
+    if (loadingIngredients || didAutoSwitch.current || ingredients.length === 0) return
+    didAutoSwitch.current = true
+    if (expiringCount === 0) setActiveTab(1)
+  }, [loadingIngredients, expiringCount, ingredients.length])
 
   // 첫 로그인 감지 — 바로 /tutorial/step1로 이동 (메인 화면 안 거침)
   useEffect(() => () => {
@@ -265,25 +291,31 @@ export default function MainPage() {
         )}
       </div>
 
-      {/* 선택 재료 레시피 검색 CTA — 플로팅 버튼 위에 표시 */}
-      {selectedIngredients.length > 0 && (
-        <div
-          className="absolute left-0 right-0 z-30 px-4 pointer-events-none"
-          style={{ bottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}
-        >
-          <button
-            className="w-full min-h-[56px] pointer-events-auto flex flex-col items-center justify-center gap-0.5 bg-[#13AF70] rounded-2xl text-white active:scale-[0.98] transition-transform"
-            style={{ boxShadow: '0 8px 20px rgba(19,175,112,.32)' }}
-            onClick={() => router.push('/chatbot')}
+      {/* 선택 재료 레시피 검색 CTA */}
+      {selectedIngredients.length > 0 && (() => {
+        const names = selectedIngredients.map((i) => i.name)
+        const { label, message } = formatIngredientCta(names)
+        return (
+          <div
+            className="absolute left-0 right-0 z-30 px-4 pointer-events-none"
+            style={{ bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))' }}
           >
-            <span className="text-[14px] font-bold">식재료로 레시피 검색하기</span>
-            <span className="text-[11px] font-medium opacity-85">선택한 식재료 {selectedIngredients.length}개</span>
-          </button>
-        </div>
-      )}
+            <button
+              className="w-full min-h-[56px] pointer-events-auto flex items-center justify-center bg-[#13AF70] rounded-2xl text-white active:scale-[0.98] transition-transform px-4"
+              style={{ boxShadow: '0 8px 20px rgba(19,175,112,.32)' }}
+              onClick={() => {
+                setPendingChat(names, message)
+                router.push('/chatbot')
+              }}
+            >
+              <span className="text-[14px] font-bold text-center leading-tight">{label}</span>
+            </button>
+          </div>
+        )
+      })()}
 
-      {/* 플로팅 냉탐이 — 항상 표시, 탐정 배너 닫을 때 필 형태로 확장 */}
-      <button
+      {/* 플로팅 냉탐이 — CTA 없을 때만 표시 */}
+      {selectedIngredients.length === 0 && <button
         type="button"
         aria-label="냉탐이와 레시피 찾기"
         onClick={() => router.push('/chatbot')}
@@ -325,7 +357,7 @@ export default function MainPage() {
         }}>
           <span style={{ fontSize: 15.5, fontWeight: 800, color: '#1F2937' }}>오늘 뭐 먹을까요?</span>
         </span>
-      </button>
+      </button>}
 
       {/* 하단 고정 네비 */}
       <BottomNavigation active="home" />
