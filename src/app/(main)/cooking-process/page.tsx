@@ -391,7 +391,7 @@ export default function CookingProcessPage() {
                                 e.stopPropagation()
                                 setIngredientUpdates((prev) =>
                                   prev.map((item) =>
-                                    item.id === u.id ? { ...item, action: 'update', newQuantity: '' } : item
+                                    item.id === u.id ? { ...item, action: 'reduce' as const, newQuantity: '' } : item
                                   )
                                 )
                                 setEditingQuantityId(u.id)

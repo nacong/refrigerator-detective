@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { Ingredient } from '@/types'
 
 /* ------------------------------------------------------------------
@@ -39,9 +39,9 @@ export interface DetectiveSummaryHeroProps {
 }
 
 const POPULAR_RECIPES = [
-  '제육볶음', '파스타', '김치찌개', '된장찌개', '계란볶음밥',
-  '부대찌개', '순두부찌개', '비빔밥', '떡볶음', '닭볶음탕',
-  '콩나물국밥', '짜글이', '참치김치찌개', '감자조림', '두부김치',
+  '계란볶음밥', '참치김치찌개', '라면', '된장찌개', '두부김치',
+  '콩나물국밥', '감자조림', '짜파게티', '순두부찌개', '김치볶음밥',
+  '햄야채볶음', '참치마요덮밥', '떡볶음', '부대찌개', '고추장비빔밥',
 ]
 
 function dailySeed(): number {
@@ -60,6 +60,26 @@ function daysUntil(dateStr: string): number {
   const target = new Date(dateStr)
   target.setHours(0, 0, 0, 0)
   return Math.round((target.getTime() - today.getTime()) / 86400000)
+}
+
+function todayKey(ingredient: string) {
+  const d = new Date()
+  return `suggest-dish-${ingredient}-${d.getFullYear()}${d.getMonth()}${d.getDate()}`
+}
+
+async function fetchSuggestedDish(ingredient: string): Promise<string | null> {
+  const key = todayKey(ingredient)
+  const cached = localStorage.getItem(key)
+  if (cached) return cached
+
+  try {
+    const res = await fetch(`/api/pinecone/recommend?ingredients=${encodeURIComponent(ingredient)}`)
+    const data = await res.json()
+    const name = Array.isArray(data) && data[0]?.name ? String(data[0].name) : null
+    if (name) localStorage.setItem(key, name)
+    return name
+  } catch {}
+  return null
 }
 
 export default function DetectiveSummaryHero({
@@ -90,23 +110,23 @@ export default function DetectiveSummaryHero({
     return 'report'
   }, [forceMood, isEmpty, hasExpiring])
 
-  const title = useMemo(() => {
-    const ingredient = expiringList[0]?.name
-    const recipe = seededPick(POPULAR_RECIPES)
+  const expiringIngredient = expiringList[0]?.name ?? null
+  const [suggestedDish, setSuggestedDish] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!expiringIngredient) return
+    fetchSuggestedDish(expiringIngredient).then(setSuggestedDish)
+  }, [expiringIngredient])
+
+  const title = useMemo(() => {
     if (mood === 'frontview') return '아직 등록된 재료가 적어요.\n재료를 추가해볼까요?'
 
-    if (ingredient) {
-      const isSimple = !ingredient.includes(' ') && ingredient.length <= 6
-      const expiringPool = [
-        isSimple
-          ? `지금 ${ingredient}가 울고 있어요.\n오늘 ${recipe} 어떠세요?`
-          : `지금 ${ingredient}가 울고 있어요.`,
-        `${ingredient} 아직 있죠?\n오늘이 딱 타이밍이에요!`,
-        `${ingredient} 유통기한이 얼마 안 남았어요!\n탐정이 레시피 찾아드릴게요.`,
-      ]
-      return seededPick(expiringPool, 1)
+    if (expiringIngredient) {
+      if (!suggestedDish) return `지금 ${expiringIngredient}이 울고 있어요.`
+      return `지금 ${expiringIngredient}이 울고 있어요.\n오늘 ${suggestedDish} 어떠세요?`
     }
+
+    const recipe = seededPick(POPULAR_RECIPES)
 
     const pool: string[] = [
       `오늘은 ${recipe}이 딱인데!`,
@@ -117,7 +137,7 @@ export default function DetectiveSummaryHero({
     ]
 
     return seededPick(pool, 1)
-  }, [mood, expiringList])
+  }, [mood, expiringIngredient, suggestedDish])
 
   return (
     <section aria-label="냉탐이 오늘의 보고" className="mx-4 mb-5">
