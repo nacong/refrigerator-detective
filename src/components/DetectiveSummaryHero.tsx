@@ -95,7 +95,7 @@ export default function DetectiveSummaryHero({
     return ingredients
       .filter((i) => i.expiryDate)
       .map((i) => ({ ingredient: i, d: daysUntil(i.expiryDate) }))
-      .filter((x) => x.d <= 3)
+      .filter((x) => x.d >= 0 && x.d <= 3)
       .sort((a, b) => a.d - b.d)
       .map((x) => x.ingredient)
   }, [ingredients, expiringSoonIngredients])
