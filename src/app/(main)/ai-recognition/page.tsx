@@ -58,6 +58,13 @@ function AIRecognitionContent() {
   const addIngredient = useAddIngredient()
 
   useEffect(() => {
+    if (actionParam === 'manual') {
+      setRecognizedIngredients([])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
     if (!autostart || !capturedImage) return
     const processImage = async () => {
       try {
