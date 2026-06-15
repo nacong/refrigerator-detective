@@ -21,7 +21,7 @@ export default function ChatbotPage() {
   const initialMessage: ChatMessage = {
     id: 'initial',
     role: 'assistant',
-    content: `안녕하세요, ${userName}님 😊\n저에게 의뢰를 주시면\n맞춤 레시피를 만들어드릴게요!`,
+    content: `안녕하세요, ${userName}님 😊\n저에게 의뢰를 주시면\n맞춤 레시피를 추천해 드릴게요!`,
     createdAt: new Date().toISOString(),
   }
 
@@ -31,6 +31,8 @@ export default function ChatbotPage() {
 
   const [inputText, setInputText] = useState('')
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([])
+  const [recipeMode, setRecipeMode] = useState<'search' | 'generate'>('search')
+  const [loadingMode, setLoadingMode] = useState<'search' | 'generate'>('search')
   const [showIngredientPicker, setShowIngredientPicker] = useState(false)
   const [pickerView, setPickerView] = useState<'all' | 'category'>('all')
 
@@ -87,7 +89,8 @@ export default function ChatbotPage() {
     const text = inputText.trim()
     if (!text || isLoading) return
     setInputText('')
-    await sendMessage(text, selectedIngredients, 'generate')
+    setLoadingMode(recipeMode)
+    await sendMessage(text, selectedIngredients, recipeMode)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -132,25 +135,36 @@ export default function ChatbotPage() {
           <div className="flex justify-start items-start gap-2 mb-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/detective_thinking.png"
+              src={loadingMode === 'generate' ? '/images/detective_thinking.png' : '/images/detective_frontview.png'}
               alt="냉탐이"
               className="rounded-[14px] object-cover flex-shrink-0"
-              style={{ width: 56, height: 56, marginTop: 4 }}
+              style={loadingMode === 'generate' ? { width: 56, height: 56, marginTop: 4 } : { width: 44, height: 44, marginTop: 6 }}
             />
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-normal text-gray-500 pl-1 mb-0.5">냉탐이</p>
-              <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3.5 max-w-[260px]">
-                <p className="text-[13px] font-bold text-gray-700 mb-1">✨ 레시피 제작 중!</p>
-                <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
-                  재료와 조리 방법을 조합하고 있어요.{'\n'}
-                  잠깐만 기다려 주세요 😊
-                </p>
-                <div className="flex gap-1.5 items-center">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+
+              {loadingMode === 'generate' ? (
+                <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3.5 max-w-[260px]">
+                  <p className="text-[13px] font-bold text-gray-700 mb-1">✨ 생성 — 레시피 제작 중!</p>
+                  <p className="text-[12px] text-gray-500 leading-relaxed mb-3">
+                    재료와 조리 방법을 조합하고 있어요.{'\n'}
+                    잠깐만 기다려 주세요 😊
+                  </p>
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-gray-100 rounded-tl-[4px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl px-4 py-3 w-fit">
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -169,7 +183,7 @@ export default function ChatbotPage() {
           ].map(({ emoji, label }) => (
             <button
               key={label}
-              onClick={() => setInputText(label)}
+              onClick={() => { setInputText(label); setRecipeMode('generate') }}
               className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-gray-200 bg-white active:bg-gray-50 transition-colors text-left"
             >
               <span className="text-sm flex-shrink-0">{emoji}</span>
@@ -377,6 +391,17 @@ export default function ChatbotPage() {
                     {selectedIngredients.length}
                   </span>
                 )}
+              </button>
+
+              {/* 모드 토글 pill */}
+              <button
+                onClick={() => setRecipeMode((m) => (m === 'search' ? 'generate' : 'search'))}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white shadow-sm active:scale-95 transition-transform"
+              >
+                <span className="text-[12px] leading-none">{recipeMode === 'search' ? '🔍' : '✨'}</span>
+                <span className={`text-[11px] font-semibold ${recipeMode === 'search' ? 'text-[#13AF70]' : 'text-orange-400'}`}>
+                  {recipeMode === 'search' ? '검색' : '생성'}
+                </span>
               </button>
 
               {/* 스페이서 */}
