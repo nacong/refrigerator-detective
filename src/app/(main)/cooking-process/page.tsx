@@ -386,7 +386,21 @@ export default function CookingProcessPage() {
                             <span className="text-xs text-gray-400 line-through">{u.oldQuantity}</span>
                           )}
                           {u.action === 'remove' ? (
-                            <span className="text-xs font-medium text-red-400">전부 사용됨</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setIngredientUpdates((prev) =>
+                                  prev.map((item) =>
+                                    item.id === u.id ? { ...item, action: 'update', newQuantity: '' } : item
+                                  )
+                                )
+                                setEditingQuantityId(u.id)
+                                setEditingQuantityValue('')
+                              }}
+                              className="text-xs font-medium text-red-400 underline underline-offset-2 decoration-dashed"
+                            >
+                              전부 사용됨
+                            </button>
                           ) : editingQuantityId === u.id ? (
                             <input
                               type="text"

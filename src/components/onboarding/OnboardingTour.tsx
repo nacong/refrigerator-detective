@@ -328,16 +328,26 @@ function TourHomeScene({ tab, bannerOpen }: { tab: 'attention' | 'recipes'; bann
         type="button"
         aria-label="냉탐이와 레시피 찾기"
         style={{
-          position: 'absolute', bottom: 80, right: 16,
-          width: 56, height: 56, borderRadius: '50%',
-          background: '#13AF70', border: 'none', cursor: 'default',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 6px 20px rgba(19,175,112,.4)',
+          position: 'absolute', bottom: 80, right: 14,
+          height: 62, padding: 0, borderRadius: 9999,
+          overflow: 'hidden', cursor: 'default',
+          background: '#EAF7EF', border: '2px solid #BFE8CF',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 20px -6px rgba(19,175,112,.45), 0 0 0 4px rgba(19,175,112,.07)',
           zIndex: 10,
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/detective_frontview.png" alt="" aria-hidden style={{ width: 36, height: 36, objectFit: 'contain' }} />
+        <img
+          src="/images/detective_salute.png"
+          alt=""
+          aria-hidden
+          style={{
+            width: 58, height: 58,
+            objectFit: 'cover', objectPosition: '50% 8%',
+            transform: 'scale(1.42)', transformOrigin: '50% 6%',
+          }}
+        />
       </button>
 
       <SceneBottomNav active="home" />

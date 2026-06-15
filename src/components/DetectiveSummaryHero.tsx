@@ -96,6 +96,18 @@ export default function DetectiveSummaryHero({
 
     if (mood === 'frontview') return '아직 등록된 재료가 적어요.\n재료를 추가해볼까요?'
 
+    if (ingredient) {
+      const isSimple = !ingredient.includes(' ') && ingredient.length <= 6
+      const expiringPool = [
+        isSimple
+          ? `지금 ${ingredient}가 울고 있어요.\n오늘 ${recipe} 어떠세요?`
+          : `지금 ${ingredient}가 울고 있어요.`,
+        `${ingredient} 아직 있죠?\n오늘이 딱 타이밍이에요!`,
+        `${ingredient} 유통기한이 얼마 안 남았어요!\n탐정이 레시피 찾아드릴게요.`,
+      ]
+      return seededPick(expiringPool, 1)
+    }
+
     const pool: string[] = [
       `오늘은 ${recipe}이 딱인데!`,
       `오늘 저녁은 ${recipe} 어때요?`,
@@ -103,17 +115,6 @@ export default function DetectiveSummaryHero({
       '오늘 뭐 먹을지 탐정한테 물어봐요!',
       '냉장고 탐정이 레시피 준비해뒀어요!',
     ]
-
-    if (ingredient) {
-      const isSimple = !ingredient.includes(' ') && ingredient.length <= 6
-      if (isSimple) {
-        pool.push(`지금 ${ingredient}가 울고 있어요.\n오늘 ${recipe} 어떠세요?`)
-      } else {
-        pool.push(`지금 ${ingredient}가 울고 있어요.`)
-      }
-      pool.push(`${ingredient} 아직 있죠?\n오늘이 딱 타이밍이에요!`)
-      pool.push(`${ingredient} 유통기한이 얼마 안 남았어요!\n탐정이 레시피 찾아드릴게요.`)
-    }
 
     return seededPick(pool, 1)
   }, [mood, expiringList])

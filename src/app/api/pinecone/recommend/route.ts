@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (!ingredients) return NextResponse.json([])
-    const results = await searchRecipes(ingredients, 5)
+    const results = await searchRecipes(ingredients, 20)
 
     const seen = new Set<string>()
     const recipes = results.flatMap((doc) => {

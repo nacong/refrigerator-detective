@@ -71,7 +71,7 @@ export default function TodayRecommendedRecipes({
         if (b._exp !== a._exp) return b._exp - a._exp
         return b._matched.length - a._matched.length
       })
-      .slice(0, 6)
+      .slice(0, 20)
   }, [recipes, fridge, expiring])
 
   return (
