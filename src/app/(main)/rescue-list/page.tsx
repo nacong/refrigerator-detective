@@ -128,7 +128,7 @@ export default function RescueListPage() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== toast.id)), 2800)
   }
 
-  const handleDelete = (ingredient: Ingredient) => {
+  const handleDelete = (ingredient: Ingredient, skipToast = false) => {
     deleteIngredient.mutate(ingredient.id, {
       onSuccess: async () => {
         try {
@@ -136,7 +136,9 @@ export default function RescueListPage() {
           if (res.ok) {
             const { cleared_count } = await res.json()
             queryClient.invalidateQueries({ queryKey: ['user-stats'] })
-            showToast({ id: Date.now(), name: ingredient.name, count: cleared_count, isMilestone: !!MILESTONES[cleared_count] })
+            if (!skipToast) {
+              showToast({ id: Date.now(), name: ingredient.name, count: cleared_count, isMilestone: !!MILESTONES[cleared_count] })
+            }
           }
         } catch { /* ignore */ }
         setSelectedIds((s) => { const next = new Set(s); next.delete(ingredient.id); return next })
@@ -146,7 +148,7 @@ export default function RescueListPage() {
 
   const handleDiscardConfirm = () => {
     if (!discardTarget) return
-    handleDelete(discardTarget)
+    handleDelete(discardTarget, true)
     setDiscardTarget(null)
   }
 
