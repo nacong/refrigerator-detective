@@ -46,6 +46,7 @@ export interface ChatMessage {
   chatRecipes?: ChatRecipe[]
   selectedIngredients?: string[] // 유저 메시지에 첨부된 선택 재료
   additionalIngredient?: string  // one-more-ingredient: LLM 추천 추가 재료 (쿠팡 링크용)
+  mode?: 'search' | 'generate'
   createdAt: string
 }
 

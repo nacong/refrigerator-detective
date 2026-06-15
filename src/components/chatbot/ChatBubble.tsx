@@ -119,6 +119,13 @@ export default function ChatBubble({ message }: ChatBubbleProps) {
         </div>
       )}
 
+      {/* 생성 모드 면책 문구 */}
+      {message.mode === 'generate' && message.content && (
+        <p className="pl-[52px] pt-1.5 text-[11px] text-gray-400 leading-snug">
+          ⚠️ AI가 생성한 레시피로, 내용에 오류가 있을 수 있습니다. 조리 전 반드시 확인해 주세요.
+        </p>
+      )}
+
       {/* 쿠팡 장보기 버튼 — additionalIngredient 있을 때만 */}
       {message.additionalIngredient && (
         <div className="pl-[52px] pt-2.5">

@@ -53,6 +53,7 @@ export function useChat() {
         role: 'assistant',
         content: '',
         chatRecipes,
+        mode,
         createdAt: new Date().toISOString(),
       })
 
