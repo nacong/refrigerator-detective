@@ -136,24 +136,28 @@ function AIRecognitionContent() {
     setEditValues({})
   }
 
-  const handleManualAdd = () => {
+  const handleManualAdd = async () => {
     setManualError(null)
     if (!manualForm.name.trim()) {
       setManualError('식재료 이름을 입력해주세요.')
       return
     }
-    const newItem: Partial<Ingredient> = {
-      id: `manual-${Date.now()}`,
-      name: manualForm.name.trim(),
-      emoji: manualForm.emoji.trim() || '🥘',
-      quantity: manualForm.quantity.trim() || '적당량',
-      expiryDate: manualForm.expiryDate,
-      location: manualForm.location,
-      category: manualForm.category,
+    setIsSaving(true)
+    try {
+      await addIngredient.mutateAsync({
+        name: manualForm.name.trim(),
+        emoji: manualForm.emoji.trim() || '🥘',
+        quantity: manualForm.quantity.trim() || '적당량',
+        expiryDate: manualForm.expiryDate,
+        location: manualForm.location,
+        category: manualForm.category,
+      })
+      router.push(from === 'rescue-list' ? '/rescue-list' : '/')
+    } catch (error) {
+      setManualError(error instanceof Error ? error.message : '저장 중 오류가 발생했습니다.')
+    } finally {
+      setIsSaving(false)
     }
-    setRecognizedIngredients([...recognizedIngredients, newItem])
-    setManualForm(DEFAULT_MANUAL_FORM)
-    setPhase('result')
   }
 
   const handleSave = async () => {
@@ -312,9 +316,15 @@ function AIRecognitionContent() {
         <div className="px-5 pb-8 pt-3 bg-white border-t border-gray-100">
           <button
             onClick={handleManualAdd}
-            className="w-full bg-[#13AF70] text-white font-bold py-4 rounded-2xl text-[16px] active:scale-[0.98] transition-transform"
+            disabled={isSaving}
+            className="w-full bg-[#13AF70] text-white font-bold py-4 rounded-2xl text-[16px] active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            추가하기
+            {isSaving ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>저장 중...</span>
+              </>
+            ) : '추가하기'}
           </button>
         </div>
         </div>
