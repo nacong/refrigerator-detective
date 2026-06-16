@@ -415,7 +415,7 @@ export default function MainPage() {
       {showSoloModal && (
         <div className="fixed inset-0 z-50 bg-white flex justify-center">
           <div
-            className="w-full max-w-[430px] flex flex-col"
+            className="w-full max-w-[430px] flex flex-col relative"
             style={{ paddingTop: 'max(0px, env(safe-area-inset-top))' }}
           >
           {/* 검색 헤더 */}
@@ -464,7 +464,7 @@ export default function MainPage() {
             className="absolute z-[52] inline-flex items-center cursor-pointer"
             style={{
               right: 14,
-              bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+              bottom: 'calc(40px + env(safe-area-inset-bottom, 0px))',
               height: 62,
               padding: 0,
               borderRadius: 9999,
